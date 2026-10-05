@@ -15,6 +15,8 @@ in priority order. Evidence for every "works" is in `TEST-LOG.md`.
 | First-run journey | Pitch (5 slides, generated art) → sign-up (email + password only, or Apple/Google) → two-tap setup → welcome offer → Home | Harness 31/31, flows 16/16, live flow 1/1 |
 | Apple + Google sign-in | Native lane when the platform holds this app's client ids; otherwise the brokered browser lane; a 412 falls back automatically | Same code path proven in production elsewhere; not yet tried on a device for Duebox |
 | Meta measurement | SDK + ATT + attribution hand-off + server Conversions API | Dormant until keys are set (by design) |
+| **Production** | Live at **https://duebox.xenition.com** (API + website: privacy, terms, support, delete-account) through Xenition's own pipeline | `API=https://duebox.xenition.com npm run test:api` → 221/221; live journey 1/1 |
+| Reminders in production | GitHub Actions tick every 5 min + traffic nudge (the pipeline has no cron); claimed before sending | Tick claimed and pushed a due reminder on production |
 | Review prompt | Duebox sheet after the first deadline; once more after 3 done + 3 days; store sheet on Rate; no sentiment gate | Harness shot `43-review-prompt` |
 
 ## 2. Run it
@@ -25,7 +27,7 @@ Workers secrets: `XENITION_API_KEY`, `EXPO_ACCESS_TOKEN`,
 
 ## 3. Open, in order
 
-1. **Deploy the worker** — `wrangler secret put` each secret, `npm run deploy`, set `EXPO_PUBLIC_API_URL`, rerun `npm run test:api` with `API=https://…`.
+1. ~~Deploy~~ — done: https://duebox.xenition.com (`docs/DEPLOY.md`). Still to add on the Worker: store keys, Expo access token, Meta keys (need secrets on Xenition's Cloudflare account).
 2. **Dev build on real phones** (EAS project id → `EXPO_PUBLIC_EAS_PROJECT_ID`): push arrival with Done/Snooze actions, camera scan, Apple and Google native sign-in.
 3. **Native sign-in credentials** on the platform (Apple Services ID, Google client ids) so the native sheets are used instead of the browser lane.
 4. **Store products**: `duebox_pro_monthly` ($4.99), `duebox_pro_yearly` ($34.99), and the welcome-offer pair `duebox_pro_monthly_offer` / `duebox_pro_yearly_offer`, all on entitlement `pro`; Apple/Google server keys; sandbox purchase + restore.

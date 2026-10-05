@@ -204,4 +204,15 @@ export const APP_MIGRATIONS: Migration[] = [
   created_at timestamptz NOT NULL DEFAULT now()
 )`,
   },
+  {
+    id: 'dx/0016_create_job_tick',
+    sql: `CREATE TABLE IF NOT EXISTS dx__job_tick (
+  name text PRIMARY KEY,
+  last_at timestamptz NOT NULL DEFAULT 'epoch'
+)`,
+  },
+  {
+    id: 'dx/0017_seed_job_tick_deliver',
+    sql: `INSERT INTO dx__job_tick (name, last_at) VALUES ('deliver', 'epoch') ON CONFLICT (name) DO NOTHING`,
+  },
 ];

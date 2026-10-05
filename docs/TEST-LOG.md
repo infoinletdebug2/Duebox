@@ -3,6 +3,18 @@
 What has and has not been verified, in writing (`playbook.md` → "Reporting
 status honestly"). Newest first.
 
+## 2026-10-05 (night) — deployed to production
+
+| Check | Result | Notes |
+|---|---|---|
+| Deploy (`deploy/xenition.mjs`, Xenition pipeline, `@bare`) | ✅ live at https://duebox.xenition.com · worker `duebox` · app `app_duebox` | First attempt failed: `crypto.randomUUID()` in global scope (Workers forbid it) → made lazy; reproduced and verified with `wrangler dev` on the pipeline's own config first |
+| Website | ✅ `/`, `/privacy`, `/terms`, `/support`, `/delete-account` | Legal text compiled from the app's screens; the pipeline replaces the home page `<title>` with the app name |
+| **curl suite on production** | ✅ **221/221** | AI read through Xenition, files really deleted (200 → 404), reminder tick claims + pushes, refused push re-queued |
+| Live journey (web build → production) | ✅ 1/1 | sign up → setup → trial offer → Home → first deadline |
+| Reminders | ✅ | The pipeline writes no cron triggers; `.github/workflows/reminders.yml` + traffic nudge drive `tickDelivery` (gated, claim-first) |
+| SDK | ✅ 0.2.9 | |
+| Terms | Corrected | The 7-day trial is free Pro after setup, not a store intro offer |
+
 ## 2026-10-05 (evening) — pre-phone audit against Clearbill's fixes
 
 | Check | Result | Notes |

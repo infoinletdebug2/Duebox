@@ -1,0 +1,24 @@
+# Drives Duebox's reminder delivery in production.
+#
+# Xenition's deploy pipeline writes its own wrangler.toml with no cron
+# triggers, so the Worker's scheduled() never fires there. This calls the
+# public tick instead: it only sends reminders that are already due, runs at
+# most once every ~2 minutes (gated in the database) and claims each reminder
+# before pushing it, so an extra or early call can never double-send.
+# No secrets needed. GitHub may delay scheduled runs by a few minutes; API
+# traffic also nudges delivery, and a reminder up to 24 h late is still sent.
+name: reminders
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Deliver due reminders
+        run: |
+          curl -fsS --max-time 90 --retry 2 https://duebox.xenition.com/api/v1/internal/jobs/tick

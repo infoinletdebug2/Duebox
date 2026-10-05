@@ -20,7 +20,6 @@ STAMP="$(date +%s)"
 OWNER_EMAIL="apitest+owner${STAMP}@duebox.test"
 PARTNER_EMAIL="apitest+partner${STAMP}@duebox.test"
 TZ_HEADER="America/Chicago"
-JOB_SECRET="${JOB_SECRET:-$(grep -E '^JOB_SECRET=' "$(dirname "$0")/../.dev.vars" 2>/dev/null | cut -d= -f2-)}"
 SAMPLE_LETTER="${SAMPLE_LETTER:-$(dirname "$0")/sample-letter.jpg}"
 OUT="$(mktemp)"
 PASS=0
@@ -276,25 +275,27 @@ call PATCH "/items/$ITEM1" 400 '{"assigneeId":"00000000-0000-0000-0000-000000000
 call DELETE "/household/invites/$INVITE" 200
 
 echo "reminder job"
-if [ -n "$JOB_SECRET" ]; then
-  call POST /internal/jobs/deliver 403 '' -H 'x-job-secret: wrong'
-  call POST /internal/jobs/deliver 200 '' -H "x-job-secret: $JOB_SECRET"
-  check 'typeof d.data.due==="number" && typeof d.data.sent==="number"' "delivery ran: $(js 'JSON.stringify(d.data)')"
-  # Pull one of this household's reminders into the past, then deliver it for real
-  # through Expo. The test token is fake, so Expo refuses it: the reminder must be
-  # retried (attempts + 1), not marked sent, and never crash the job.
-  SQL="npx tsx --env-file=$(dirname "$0")/../.dev.vars $(dirname "$0")/sql.ts"
-  REM="$($SQL "UPDATE dx__reminder SET fire_at = now() - interval '2 minutes' WHERE id = (SELECT id FROM dx__reminder WHERE item_id = \$1::uuid AND sent_at IS NULL AND canceled_at IS NULL ORDER BY fire_at LIMIT 1) RETURNING id" "[\"$ITEM4\"]" 2>/dev/null | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const r=JSON.parse(s||'[]');process.stdout.write(r[0]?.id??'')})")"
-  if [ -n "$REM" ]; then
-    call POST /internal/jobs/deliver 200 '' -H "x-job-secret: $JOB_SECRET"
-    check 'd.data.due>=1' "a due reminder was picked up: $(js 'JSON.stringify(d.data)')"
-    STATE="$($SQL "SELECT sent_at, attempts FROM dx__reminder WHERE id = \$1::uuid" "[\"$REM\"]" 2>/dev/null)"
-    if echo "$STATE" | grep -q '"attempts":1' || echo "$STATE" | grep -q '"sent_at":"'; then PASS=$((PASS + 1)); green "    ✓ reminder state after Expo answered: $STATE"; else FAIL=$((FAIL + 1)); red "    ✗ reminder state: $STATE"; fi
-  else
-    FAIL=$((FAIL + 1)); red "    ✗ could not find a reminder to pull into the past"
-  fi
+SQL="npx tsx --env-file=$(dirname "$0")/../.dev.vars $(dirname "$0")/sql.ts"
+call POST /internal/jobs/deliver 403 '' -H 'x-job-secret: wrong'
+check 'd.error.code==="FORBIDDEN"' 'the unthrottled job route needs its secret'
+# The public tick runs delivery at most every ~2 minutes; open the gate so this run goes now.
+$SQL "UPDATE dx__job_tick SET last_at = 'epoch' WHERE name = 'deliver'" >/dev/null 2>&1
+call GET /internal/jobs/tick 200
+check 'd.data.ran===true && typeof d.data.due==="number"' "tick ran delivery: $(js 'JSON.stringify(d.data)')"
+call GET /internal/jobs/tick 200
+check 'd.data.ran===false' 'a second tick inside two minutes is a no-op (gated)'
+# Pull one of this household's reminders into the past, then deliver it for real through
+# Expo. The test token is fake, so Expo refuses it: the reminder must go back in the queue
+# (sent_at cleared, attempts + 1), never be lost and never crash the job.
+REM="$($SQL "UPDATE dx__reminder SET fire_at = now() - interval '2 minutes' WHERE id = (SELECT id FROM dx__reminder WHERE item_id = \$1::uuid AND sent_at IS NULL AND canceled_at IS NULL ORDER BY fire_at LIMIT 1) RETURNING id" "[\"$ITEM4\"]" 2>/dev/null | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>{const r=JSON.parse(s||'[]');process.stdout.write(r[0]?.id??'')})")"
+if [ -n "$REM" ]; then
+  $SQL "UPDATE dx__job_tick SET last_at = 'epoch' WHERE name = 'deliver'" >/dev/null 2>&1
+  call GET /internal/jobs/tick 200
+  check 'd.data.due>=1' "a due reminder was claimed and pushed: $(js 'JSON.stringify(d.data)')"
+  STATE="$($SQL "SELECT sent_at, attempts FROM dx__reminder WHERE id = \$1::uuid" "[\"$REM\"]" 2>/dev/null)"
+  if echo "$STATE" | grep -q '"attempts":1' && echo "$STATE" | grep -q '"sent_at":null'; then PASS=$((PASS + 1)); green "    ✓ refused push went back in the queue: $STATE"; else FAIL=$((FAIL + 1)); red "    ✗ reminder state: $STATE"; fi
 else
-  echo "    (JOB_SECRET not set — skipped)"
+  FAIL=$((FAIL + 1)); red "    ✗ could not find a reminder to pull into the past"
 fi
 
 echo "gating after the trial (Free)"

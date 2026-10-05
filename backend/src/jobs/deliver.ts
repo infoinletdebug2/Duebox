@@ -72,16 +72,27 @@ export async function deliverReminders(c: Context): Promise<{ due: number; sent:
        AND (i.status <> 'open' OR i.deleted_at IS NOT NULL)`,
   );
 
+  // CLAIM first: mark the due reminders sent in the same statement that picks
+  // them (SKIP LOCKED), so two runs at once — the cron, a tick, a nudge from
+  // traffic — can never push the same reminder twice. A transient push
+  // failure hands it back below (sent_at = NULL, attempts + 1).
   const due = await rawRows<DueRow>(
     c,
-    `SELECT r.id, r.kind, r.fire_at, i.id AS item_id, i.title, i.action, i.due_date, i.amount_cents, i.assignee_id,
-            r.household_id, h.timezone, h.currency
-     FROM dx__reminder r
-     JOIN dx__item i ON i.id = r.item_id
-     JOIN dx__household h ON h.id = r.household_id
-     WHERE r.fire_at <= now() AND r.sent_at IS NULL AND r.canceled_at IS NULL AND r.attempts < 3
-       AND i.status = 'open' AND i.deleted_at IS NULL AND h.deleted_at IS NULL
-     ORDER BY r.fire_at LIMIT 500`,
+    `WITH claimed AS (
+       UPDATE dx__reminder SET sent_at = now()
+       WHERE id IN (
+         SELECT r.id FROM dx__reminder r
+         JOIN dx__item i ON i.id = r.item_id
+         JOIN dx__household h ON h.id = r.household_id
+         WHERE r.fire_at <= now() AND r.sent_at IS NULL AND r.canceled_at IS NULL AND r.attempts < 3
+           AND i.status = 'open' AND i.deleted_at IS NULL AND h.deleted_at IS NULL
+         ORDER BY r.fire_at LIMIT 500
+         FOR UPDATE OF r SKIP LOCKED)
+       RETURNING id, kind, fire_at, item_id, household_id)
+     SELECT cl.id, cl.kind, cl.fire_at, i.id AS item_id, i.title, i.action, i.due_date, i.amount_cents, i.assignee_id,
+            cl.household_id, h.timezone, h.currency
+     FROM claimed cl JOIN dx__item i ON i.id = cl.item_id JOIN dx__household h ON h.id = cl.household_id
+     ORDER BY cl.fire_at`,
   );
   if (due.length === 0) return { due: 0, sent: 0, skipped: 0, failed: 0 };
 
@@ -160,8 +171,23 @@ export async function deliverReminders(c: Context): Promise<{ due: number; sent:
     failedIds.delete(reminderId);
   }
 
-  const done = [...sentIds, ...skippedIds];
-  if (done.length) await rawRows(c, `UPDATE dx__reminder SET sent_at = now() WHERE id = ANY($1::uuid[])`, [done]);
-  if (failedIds.size) await rawRows(c, `UPDATE dx__reminder SET attempts = attempts + 1 WHERE id = ANY($1::uuid[])`, [[...failedIds]]);
+  // Sent and skipped stay claimed (sent_at set). Transient failures go back in the queue.
+  if (failedIds.size) {
+    await rawRows(c, `UPDATE dx__reminder SET sent_at = NULL, attempts = attempts + 1 WHERE id = ANY($1::uuid[])`, [[...failedIds]]);
+  }
   return { due: due.length, sent: sentIds.length, skipped: skippedIds.length, failed: failedIds.size };
+}
+
+/**
+ * Run delivery at most once every ~2 minutes across every isolate. The gate
+ * is one atomic UPDATE on dx__job_tick: whoever moves `last_at` runs, every
+ * other caller is a no-op. Safe to call from anywhere, any number of times.
+ */
+export async function tickDelivery(c: Context): Promise<{ ran: boolean } & Partial<Awaited<ReturnType<typeof deliverReminders>>>> {
+  const won = await rawRows<{ name: string }>(
+    c,
+    `UPDATE dx__job_tick SET last_at = now() WHERE name = 'deliver' AND last_at < now() - interval '110 seconds' RETURNING name`,
+  );
+  if (won.length === 0) return { ran: false };
+  return { ran: true, ...(await deliverReminders(c)) };
 }

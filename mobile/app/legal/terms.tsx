@@ -6,7 +6,7 @@ import { LegalScreen, type LegalSection } from '../../src/account/LegalScreen';
  * settings, signed in or out). DRAFT: needs a qualified legal review before
  * release.
  */
-export const EFFECTIVE = 'October 4, 2026';
+export const EFFECTIVE = 'October 5, 2026';
 
 export const SUMMARY = [
   'Duebox helps you remember deadlines. It is a reminder tool, not a guarantee.',
@@ -43,7 +43,8 @@ export const SECTIONS: LegalSection[] = [
         bullets: [
           'Free: up to 5 open deadlines, 3 scans a month, and default reminders, for one person.',
           'Pro: unlimited open deadlines, up to 100 scans a month (fair use), custom reminders and a household of up to 5 people.',
-          `Pro is an auto-renewing subscription, billed monthly or yearly through the App Store or Google Play. The yearly plan may include a ${TRIAL_DAYS}-day free trial; you can cancel before it ends at no charge.`,
+          `Every new household gets ${TRIAL_DAYS} days of Pro free when it finishes setup — no card, no store purchase. When those days end the household moves to the free plan automatically; nothing is charged and nothing you saved is hidden or deleted.`,
+          `Pro is an auto-renewing subscription, billed monthly or yearly through the App Store or Google Play. A one-time welcome offer may show a discounted price after setup; the store shows the final price before you confirm.`,
           'Your subscription renews at the same price each period unless you cancel at least 24 hours before the period ends, in your App Store or Google Play account settings. Deleting the app does not cancel it.',
           'Refunds are handled by Apple or Google under their policies.',
           'If Pro ends, nothing is deleted or hidden. You can still view, complete, export and delete everything; adding over the free limits needs Pro again.',

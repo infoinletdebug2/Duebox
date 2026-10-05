@@ -61,7 +61,7 @@ export const FREE_OPEN_ITEMS = num(process.env.EXPO_PUBLIC_FREE_OPEN_ITEMS, 5);
 export const FREE_SCANS = num(process.env.EXPO_PUBLIC_FREE_SCANS, 3);
 
 export const SUPPORT_EMAIL = str(process.env.EXPO_PUBLIC_SUPPORT_EMAIL, 'contact@infoinlet.com');
-export const WEBSITE_URL = str(process.env.EXPO_PUBLIC_WEBSITE_URL, 'https://duebox.app');
+export const WEBSITE_URL = str(process.env.EXPO_PUBLIC_WEBSITE_URL, 'https://duebox.xenition.com');
 export const APPLE_APP_ID = str(process.env.EXPO_PUBLIC_APPLE_APP_ID, '');
 export const ANDROID_PACKAGE = str(process.env.EXPO_PUBLIC_ANDROID_PACKAGE, 'app.duebox.mobile');
 

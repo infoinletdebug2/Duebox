@@ -12,6 +12,7 @@ offer → Home.
 | Read | For |
 |---|---|
 | `docs/HANDOFF.md` | **Start here** — status, how to run, what is open |
+| `docs/DEPLOY.md` | Production at **https://duebox.xenition.com** — files to check, one-command deploy, verify, troubleshooting |
 | `docs/SRS.md` | Requirements (FR-*), business rules (BR-*), market research, pricing |
 | `docs/CONTRACT.md` | API + database (`dx__*`) — the agreement between backend and app |
 | `docs/ARCHITECTURE.md` | Scan pipeline, reminder planner, cron delivery, repeat math |

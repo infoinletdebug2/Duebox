@@ -376,7 +376,7 @@ const LIVE_FLOWS = [
 const LIVE = process.argv.includes('--live');
 
 async function liveCleanup() {
-  const API = 'http://localhost:8787/api/v1';
+  const API = (process.env.LIVE_API ?? 'http://localhost:8787').replace(/\/$/, '') + '/api/v1';
   const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: LIVE_EMAIL, password: LIVE_PASSWORD }) }).then((r) => r.json()).catch(() => null);
   const token = login?.data?.accessToken;
   if (!token) return console.log('  (live account not found for cleanup)');

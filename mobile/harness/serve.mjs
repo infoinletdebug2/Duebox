@@ -149,7 +149,7 @@ function lookup(method, path, q) {
   if (path === '/scans/s-2') return SCAN_FAILED;
   if (path === '/billing/plan') return PLAN;
   if (path === '/household/members') return MEMBERS;
-  if (path === '/household/invites') return [{ id: 'inv-1', code: 'K7PQ2M', link: 'https://duebox.app/join/K7PQ2M', expiresAt: iso(5) }];
+  if (path === '/household/invites') return [{ id: 'inv-1', code: 'K7PQ2M', link: 'duebox://join/K7PQ2M', expiresAt: iso(5) }];
   if (m(/^\/household\/invites\/lookup\//)) return { householdName: 'The Riveras', invitedBy: 'Dana Rivera' };
   return null;
 }

@@ -12,7 +12,7 @@ import { LegalScreen, type LegalSection } from '../../src/account/LegalScreen';
  * Exported constants above the default export so a website build can reuse
  * them; import nothing but config.
  */
-export const EFFECTIVE = 'October 4, 2026';
+export const EFFECTIVE = 'October 5, 2026';
 
 export const SUMMARY = [
   'Duebox keeps track of your deadlines. We collect only what that needs.',
@@ -73,7 +73,7 @@ export const SECTIONS: LegalSection[] = [
     heading: 'Who processes it for us',
     body: [
       'Our backend runs on Cloudflare and stores data in a managed Postgres database and private file storage through our infrastructure provider, Xenition. Files are reachable only through links that expire after 15 minutes.',
-      'Document reading. To read a scan, our server sends the page images to an AI model through OpenRouter, with data collection switched off: the provider may process the images only to return the reading, and may not keep them or use them to train models. Your phone never contacts the AI service directly.',
+      'Document reading. To read a scan, our server sends the page images through Xenition to an AI model on OpenRouter, with data collection switched off: the provider may process the images only to return the reading, and may not keep them or use them to train models. Your phone never contacts the AI service directly.',
       'Push notifications are delivered through Expo’s push service and Apple Push Notification service or Firebase Cloud Messaging. A notification contains the item title, when it is due and the amount, if any.',
       'Apple and Google process subscription payments under their own privacy policies.',
     ],
