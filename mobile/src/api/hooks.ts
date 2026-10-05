@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { coreActionCompleted } from '../lib/analytics';
-import { noteDeadlineSaved } from '../lib/review';
+import { noteFirstScan } from '../lib/review';
 import { api, newIdempotencyKey } from './client';
 import type { Home, Invite, Item, ItemDetail, ItemInput, ItemStatus, Me, Member, Plan, Prefs, Scan, Category } from '../types';
 
@@ -65,7 +65,6 @@ export function useCreateItem() {
     onSuccess: () => {
       invalidateItems(qc);
       coreActionCompleted('manual');
-      void noteDeadlineSaved();
     },
   });
 }
@@ -145,7 +144,8 @@ export function useConfirmScan(id: string) {
       void qc.invalidateQueries({ queryKey: keys.scan(id) });
       invalidateItems(qc);
       coreActionCompleted('scan');
-      void noteDeadlineSaved();
+      // The review box comes after the first scan: Duebox has just read a letter for them.
+      void noteFirstScan();
     },
   });
 }

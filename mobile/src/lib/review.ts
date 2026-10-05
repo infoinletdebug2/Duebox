@@ -13,7 +13,8 @@ import { reviewPrompt } from './analytics';
  * (`ui/ReviewPrompt.tsx`): what just happened, one sentence of why a rating
  * helps, and **Rate Duebox** / **Not now**.
  *
- *   1. `first_save` — the first deadline saved (typed in or from a scan);
+ *   1. `first_scan` — right after the first scanned letter is saved (the
+ *      moment Duebox has just done its main job);
  *   2. `done` — only for someone who said "Not now" (or never saw the first):
  *      after three deadlines marked done AND three days of use.
  *
@@ -31,7 +32,7 @@ import { reviewPrompt } from './analytics';
  *   - Never after sign-up, never on launch, never on top of an error.
  */
 
-export type ReviewTrigger = 'first_save' | 'done';
+export type ReviewTrigger = 'first_scan' | 'done';
 
 const KEYS = {
   firstSeen: 'duebox.review.firstSeen',
@@ -83,13 +84,13 @@ export async function noteFirstUse(): Promise<void> {
   await write(KEYS.firstSeen, String(Date.now()));
 }
 
-/** A deadline was saved. The first one ever on this install is the moment. */
-export async function noteDeadlineSaved(): Promise<boolean> {
+/** A scanned letter was saved as deadlines. The first one ever on this install is the moment. */
+export async function noteFirstScan(): Promise<boolean> {
   if (!platformSupportsReview()) return false;
   if (await read(KEYS.rated)) return false;
   if (Number((await read(KEYS.offers)) ?? '0') > 0) return false;
   await write(KEYS.offers, '1');
-  emit('first_save');
+  emit('first_scan');
   return true;
 }
 
@@ -142,6 +143,6 @@ export async function openStoreListing(): Promise<void> {
 }
 
 /** Harness / debug only: show the sheet regardless of the gates. */
-export function previewReviewOffer(trigger: ReviewTrigger = 'first_save'): void {
+export function previewReviewOffer(trigger: ReviewTrigger = 'first_scan'): void {
   emit(trigger);
 }

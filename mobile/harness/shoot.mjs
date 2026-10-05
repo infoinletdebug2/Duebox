@@ -75,7 +75,7 @@ const SCREENS = [
   { path: '/legal/privacy', name: '40-privacy', anonymous: true, expect: ['OpenRouter', 'last 4'] },
   { path: '/legal/terms', name: '41-terms', anonymous: true, expect: ['auto-renewing'] },
   { path: '/join/K7PQ2M', name: '42-join', expect: ['The Riveras'] },
-  { path: '/(tabs)/home?review=1', name: '43-review-prompt', settle: 2600, expect: ['First deadline, filed', 'Rate Duebox'] },
+  { path: '/(tabs)/home?review=1', name: '43-review-prompt', settle: 2600, expect: ['First letter, read', 'Rate Duebox'] },
 ];
 
 /** `--dark` shoots everything in dark mode into shots-dark/. */

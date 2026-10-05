@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePathname } from 'expo-router';
 import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withDelay, withSpring } from 'react-native-reanimated';
@@ -23,9 +24,9 @@ const INK = '#1E1229';
 const MARIGOLD = '#F2B33D';
 
 const COPY: Record<ReviewTrigger, { title: string; body: string }> = {
-  first_save: {
-    title: 'First deadline, filed',
-    body: 'That’s one less date to carry in your head. If Duebox is already helping, a quick rating helps other households find it.',
+  first_scan: {
+    title: 'First letter, read',
+    body: 'Duebox found the date and will remind you before it’s due. If that saved you a job, a quick rating helps other households find it.',
   },
   done: {
     title: 'Things getting done',
@@ -36,16 +37,14 @@ const COPY: Record<ReviewTrigger, { title: string; body: string }> = {
 export function ReviewPrompt() {
   const insets = useSafeAreaInsets();
   const [trigger, setTrigger] = useState<ReviewTrigger | null>(null);
+  const [pending, setPending] = useState<ReviewTrigger | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pathname = usePathname();
+  // Never on top of the "turn on reminders" screen that can follow the first save.
+  const blocked = pathname.includes('notifications-permission');
 
   useEffect(() => {
-    const off = onReviewOffer((next) => {
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        setTrigger(next);
-        reviewPrompt('shown', next);
-      }, SETTLE_MS);
-    });
+    const off = onReviewOffer((next) => setPending(next));
     // Harness only: `?review=1` on the web build opens the sheet for a screenshot.
     if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location.search.includes('review=1')) previewReviewOffer();
     return () => {
@@ -53,6 +52,20 @@ export function ReviewPrompt() {
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
+
+  // Rise a beat after the screen settles, and only where it won't cover a decision.
+  useEffect(() => {
+    if (!pending || blocked) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setTrigger(pending);
+      setPending(null);
+      reviewPrompt('shown', pending);
+    }, SETTLE_MS);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [pending, blocked]);
 
   const close = () => {
     if (trigger) notNow(trigger);
@@ -67,7 +80,7 @@ export function ReviewPrompt() {
     await rateNow(current);
   };
 
-  const copy = COPY[trigger ?? 'first_save'];
+  const copy = COPY[trigger ?? 'first_scan'];
 
   return (
     <Modal visible={trigger !== null} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
