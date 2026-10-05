@@ -59,6 +59,7 @@ const SCREENS = [
   { path: '/item/i-car', name: '12-item', expect: ['Found in the letter', '4821', 'Reminders at 9:00 AM', 'On the day'] },
   { path: '/item/i-car/edit', name: '13-item-edit', expect: ['Due date', 'Remind me'] },
   { path: '/item/new', name: '14-item-new', expect: ['What is it?', 'More details'] },
+  { path: '/item/new?category=insurance', name: '14b-item-new-more', expect: ['Category', 'Repeats', 'Remind me'] },
   { path: '/scan', name: '15-scan', expect: ['Snap the page', 'Camera', 'PDF'] },
   { path: '/scan/s-1', name: '16-confirm', expect: ['We found 2 deadlines', 'Deadline 2 of 2', 'Check this', 'return the completed form'] },
   { path: '/scan/s-2', name: '17-read-failed', expect: ['No date found', 'Type it in'] },

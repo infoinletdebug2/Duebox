@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useAuth } from '../auth/context';
 import { usePlanGate } from '../billing/gate';
-import { font, makeStyles, radius, space, useColors } from '../theme/tokens';
+import { makeStyles, radius, space, useColors } from '../theme/tokens';
 import { T } from '../ui/Text';
 import { Press, tap } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { Chip, ChipRow, Field } from '../ui/Controls';
-import { Avatar } from '../ui/Progress';
+import { ChoiceGrid, Field } from '../ui/Controls';
 import { DateField } from '../documents/DatePicker';
 import {
   ACTION,
@@ -174,11 +173,16 @@ export function ItemForm({
         <T variant="caption" tone="muted">
           What do you need to do?
         </T>
-        <ChipRow>
-          {ACTIONS.map((a) => (
-            <Chip key={a} label={a === 'other' ? 'Other' : ACTION[a]} selected={value.action === a} onPress={() => set('action', a)} />
-          ))}
-        </ChipRow>
+        <ChoiceGrid
+          columns={4}
+          options={ACTIONS.map((a) => ({ key: a, label: a === 'other' ? 'Other' : ACTION[a] }))}
+          isOn={(k) => value.action === k}
+          onPress={(k) => {
+            tap();
+            set('action', k as Action);
+          }}
+          testIDPrefix="action-"
+        />
       </View>
 
       {!more ? (
@@ -213,8 +217,6 @@ function MoreDetails({
   compact?: boolean;
   aiAmount?: boolean;
 }) {
-  const c = useColors();
-  const s = useStyles();
   const { isPro } = useAuth();
   const { openPaywall } = usePlanGate();
 
@@ -224,26 +226,17 @@ function MoreDetails({
         <T variant="caption" tone="muted">
           Category
         </T>
-        <View style={s.catGrid}>
-          {CATEGORIES.map((cat) => {
-            const on = value.category === cat;
-            return (
-              <Press
-                key={cat}
-                onPress={() => set('category', cat)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={CATEGORY[cat].label}
-                style={[s.cat, on && { backgroundColor: c.brand, borderColor: c.brand }]}
-              >
-                <Icon name={CATEGORY[cat].icon} size={16} color={on ? c.onBrand : c.brandInk} />
-                <T variant="caption" numberOfLines={1} style={{ color: on ? c.onBrand : c.text, fontFamily: font.semibold, flexShrink: 1 }}>
-                  {CATEGORY[cat].label}
-                </T>
-              </Press>
-            );
-          })}
-        </View>
+        <ChoiceGrid
+          columns={2}
+          align="left"
+          options={CATEGORIES.map((cat) => ({ key: cat, label: cat === 'subscriptions' ? 'Trials & subs' : CATEGORY[cat].label, icon: CATEGORY[cat].icon }))}
+          isOn={(k) => value.category === k}
+          onPress={(k) => {
+            tap();
+            set('category', k as Category);
+          }}
+          testIDPrefix="category-"
+        />
       </View>
 
       <View style={{ flexDirection: 'row', gap: space.md }}>
@@ -275,17 +268,26 @@ function MoreDetails({
         <T variant="caption" tone="muted">
           Repeats
         </T>
-        <ChipRow>
-          {(Object.keys(REPEAT) as Repeat[]).map((r) => (
-            <Chip key={r} label={REPEAT[r]} selected={value.repeat === r} onPress={() => set('repeat', r)} />
-          ))}
-        </ChipRow>
+        <ChoiceGrid
+          columns={3}
+          options={(Object.keys(REPEAT) as Repeat[]).map((r) => ({ key: r, label: r === 'none' ? 'Once' : r === 'years' ? 'Every few yrs' : REPEAT[r] }))}
+          isOn={(k) => value.repeat === k}
+          onPress={(k) => {
+            tap();
+            set('repeat', k as Repeat);
+          }}
+          testIDPrefix="repeat-"
+        />
         {value.repeat === 'years' ? (
-          <ChipRow>
-            {[2, 3, 4, 5, 10].map((n) => (
-              <Chip key={n} label={`Every ${n} years`} selected={value.repeatYears === n} onPress={() => set('repeatYears', n)} />
-            ))}
-          </ChipRow>
+          <ChoiceGrid
+            columns={5}
+            options={[2, 3, 4, 5, 10].map((n) => ({ key: String(n), label: `${n} yrs` }))}
+            isOn={(k) => value.repeatYears === Number(k)}
+            onPress={(k) => {
+              tap();
+              set('repeatYears', Number(k));
+            }}
+          />
         ) : null}
         {value.repeat !== 'none' ? (
           <T variant="caption" tone="faint">
@@ -303,33 +305,21 @@ function MoreDetails({
             {offsetsLabel(value.offsets)} + on the day
           </T>
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
-          {ALL_OFFSETS.map((o) => {
+        <ChoiceGrid
+          columns={6}
+          role="checkbox"
+          options={ALL_OFFSETS.map((o) => ({ key: String(o), label: `${o}d`, locked: !isPro && o !== 7 }))}
+          isOn={(k) => value.offsets.includes(Number(k) as Offset)}
+          onPress={(k) => {
+            const o = Number(k) as Offset;
+            if (!isPro && o !== 7) return openPaywall('custom_reminders');
+            tap();
             const on = value.offsets.includes(o);
-            const locked = !isPro && o !== 7;
-            return (
-              <Press
-                key={o}
-                testID={`offset-${o}`}
-                onPress={() => {
-                  if (locked) return openPaywall('custom_reminders');
-                  tap();
-                  const next = on ? value.offsets.filter((x) => x !== o) : [...value.offsets, o].sort((a, b) => b - a);
-                  set('offsets', next as Offset[]);
-                }}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: on, disabled: locked }}
-                accessibilityLabel={`${o} ${o === 1 ? 'day' : 'days'} before${locked ? ', Pro' : ''}`}
-                style={[s.offset, on && { backgroundColor: c.brand, borderColor: c.brand }]}
-              >
-                <T variant="callout" style={{ color: on ? c.onBrand : locked ? c.textFaint : c.text }}>
-                  {o}d
-                </T>
-                {locked ? <Icon name="lock" size={12} color={c.textFaint} /> : null}
-              </Press>
-            );
-          })}
-        </View>
+            const next = on ? value.offsets.filter((x) => x !== o) : [...value.offsets, o].sort((a, b) => b - a);
+            set('offsets', next as Offset[]);
+          }}
+          testIDPrefix="offset-"
+        />
         {!isPro ? (
           <T variant="caption" tone="faint">
             Free reminds you 7 days before and on the day. Pro lets you choose.
@@ -342,24 +332,15 @@ function MoreDetails({
           <T variant="caption" tone="muted">
             Who handles it?
           </T>
-          <ChipRow>
-            <Chip label="Anyone" selected={value.assigneeId === null} onPress={() => set('assigneeId', null)} />
-            {members.map((m, i) => (
-              <Press
-                key={m.id}
-                onPress={() => set('assigneeId', m.id)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: value.assigneeId === m.id }}
-                accessibilityLabel={m.isMe ? 'Me' : m.displayName}
-                style={[s.person, value.assigneeId === m.id && { borderColor: c.brandInk, backgroundColor: c.brandSoft }]}
-              >
-                <Avatar name={m.displayName} index={i} size={22} />
-                <T variant="caption" style={{ fontFamily: font.semibold }}>
-                  {m.isMe ? 'Me' : m.displayName.split(' ')[0]}
-                </T>
-              </Press>
-            ))}
-          </ChipRow>
+          <ChoiceGrid
+            columns={3}
+            options={[{ key: '', label: 'Anyone', icon: 'users' as const }, ...members.map((m) => ({ key: m.id, label: m.isMe ? 'Me' : m.displayName.split(' ')[0] ?? m.displayName, icon: 'user' as const }))]}
+            isOn={(k) => (value.assigneeId ?? '') === k}
+            onPress={(k) => {
+              tap();
+              set('assigneeId', k || null);
+            }}
+          />
         </View>
       ) : null}
 
@@ -391,43 +372,5 @@ const useStyles = makeStyles((c) => ({
     borderStyle: 'dashed',
     borderColor: c.line,
     paddingHorizontal: space.md,
-  },
-  catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  cat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: space.md,
-    borderRadius: radius.chip,
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-    maxWidth: '100%',
-  },
-  offset: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 52,
-    height: 40,
-    justifyContent: 'center',
-    paddingHorizontal: space.md,
-    borderRadius: radius.chip,
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-  },
-  person: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingLeft: 6,
-    paddingRight: space.md,
-    borderRadius: radius.chip,
-    borderWidth: 1.5,
-    borderColor: c.line,
-    backgroundColor: c.surface,
   },
 }));

@@ -84,6 +84,73 @@ export function ChipRow({ children }: { children: React.ReactNode }) {
   );
 }
 
+/* ── choice grid ────────────────────────────────────────────────────────── */
+
+export interface Choice {
+  key: string;
+  label: string;
+  icon?: IconName;
+  /** Shown with a lock and muted; still pressable (the caller opens the paywall). */
+  locked?: boolean;
+}
+
+/**
+ * Options as an even grid: N per row, every row edge to edge (the last row's
+ * cells stretch), one height everywhere — no ragged right edge, no row that
+ * scrolls off the screen. Use it instead of a chip strip inside forms.
+ */
+export function ChoiceGrid({
+  options,
+  isOn,
+  onPress,
+  columns,
+  align = 'center',
+  role = 'radio',
+  testIDPrefix,
+}: {
+  options: Choice[];
+  isOn: (key: string) => boolean;
+  onPress: (key: string) => void;
+  columns: number;
+  align?: 'center' | 'left';
+  role?: 'radio' | 'checkbox';
+  testIDPrefix?: string;
+}) {
+  const c = useColors();
+  const s = useStyles();
+  const rows: Choice[][] = [];
+  for (let i = 0; i < options.length; i += columns) rows.push(options.slice(i, i + columns));
+  return (
+    <View style={{ gap: space.sm }}>
+      {rows.map((row, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: space.sm }}>
+          {row.map((o) => {
+            const on = isOn(o.key);
+            const fg = on ? c.onBrand : o.locked ? c.textFaint : c.text;
+            return (
+              <Press
+                key={o.key}
+                onPress={() => onPress(o.key)}
+                accessibilityRole={role}
+                accessibilityState={role === 'checkbox' ? { checked: on } : { selected: on }}
+                accessibilityLabel={o.label + (o.locked ? ', Pro' : '')}
+                testID={testIDPrefix ? `${testIDPrefix}${o.key}` : undefined}
+                style={[s.choice, align === 'left' && s.choiceLeft, on && { backgroundColor: c.brand, borderColor: c.brand }]}
+              >
+                {o.icon ? <Icon name={o.icon} size={16} color={on ? c.onBrand : c.brandInk} /> : null}
+                <T variant="caption" numberOfLines={1} style={{ color: fg, fontFamily: font.semibold, flexShrink: 1 }}>
+                  {o.label}
+                </T>
+                {o.locked ? <Icon name="lock" size={11} color={c.textFaint} /> : null}
+              </Press>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /* ── segmented ──────────────────────────────────────────────────────────── */
 
 export function Segmented<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
@@ -112,6 +179,21 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
 }
 
 const useStyles = makeStyles((c) => ({
+  choice: {
+    flex: 1,
+    minWidth: 0,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: space.sm,
+    borderRadius: radius.tile,
+    borderWidth: 1,
+    borderColor: c.line,
+    backgroundColor: c.surface,
+  },
+  choiceLeft: { justifyContent: 'flex-start', paddingHorizontal: space.md },
   input: {
     minHeight: 50,
     borderRadius: radius.input,

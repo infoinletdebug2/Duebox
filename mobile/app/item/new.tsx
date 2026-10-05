@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/context';
 import { useCreateItem, useHome } from '../../src/api/hooks';
@@ -8,7 +8,8 @@ import { messageOf } from '../../src/api/client';
 import { font, makeStyles, radius, space, useColors } from '../../src/theme/tokens';
 import { Header, Screen } from '../../src/ui/Screen';
 import { T } from '../../src/ui/Text';
-import { Button, Press, tap } from '../../src/ui/Button';
+import { Button, tap } from '../../src/ui/Button';
+import { ChoiceGrid } from '../../src/ui/Controls';
 import { Icon } from '../../src/ui/Icon';
 import { Banner } from '../../src/ui/Feedback';
 import { useToast } from '../../src/ui/Sheet';
@@ -120,14 +121,18 @@ export default function NewItem() {
       {!form.title ? (
         <View style={{ gap: space.sm }}>
           <T variant="headline">Start from a common one</T>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm, paddingRight: space.lg }}>
-            {templates.map((t) => (
-              <Press key={t.title} onPress={() => applyTemplate(t)} accessibilityRole="button" accessibilityLabel={`Use ${t.title}`} style={s.template} testID={`template-${t.title}`}>
-                <Icon name={CATEGORY[t.category].icon} size={18} color={c.brandInk} />
-                <T variant="callout">{t.title}</T>
-              </Press>
-            ))}
-          </ScrollView>
+          <ChoiceGrid
+            columns={2}
+            align="left"
+            options={templates.slice(0, 6).map((t) => ({ key: t.title, label: t.title, icon: CATEGORY[t.category].icon }))}
+            isOn={() => false}
+            onPress={(k) => {
+              const t = templates.find((x) => x.title === k);
+              if (t) applyTemplate(t);
+            }}
+            role="radio"
+            testIDPrefix="template-"
+          />
         </View>
       ) : null}
 
@@ -156,16 +161,5 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.line,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  template: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    height: 44,
-    paddingHorizontal: space.md,
-    borderRadius: radius.chip,
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.line,
   },
 }));
