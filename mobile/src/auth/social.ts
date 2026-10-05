@@ -48,10 +48,22 @@ function loadApple(): Promise<AppleModule | null> {
 }
 
 /** Which buttons to draw. Apple only on iOS (Apple's own rule); Google everywhere it can be brokered. */
+/**
+ * Which providers can use the phone's own sheet (native id token). Filled from
+ * /auth/social/providers: `native` is true only once this app has registered its
+ * own Apple / Google client ids on the platform. Until then the token from
+ * Apple's sheet would be refused (412), so Apple goes straight to the browser
+ * — one prompt, not a sheet followed by a browser.
+ */
+const nativeReady: Partial<Record<SocialProvider, boolean>> = {};
+
 export async function availableProviders(): Promise<SocialProvider[]> {
   const brokered = await api.anonymous
-    .get<{ provider: SocialProvider }[]>('/auth/social/providers')
-    .then((list) => list.map((p) => p.provider))
+    .get<{ provider: SocialProvider; native?: boolean }[]>('/auth/social/providers')
+    .then((list) => {
+      for (const p of list) nativeReady[p.provider] = p.native === true;
+      return list.map((p) => p.provider);
+    })
     .catch(() => [] as SocialProvider[]);
 
   const all = new Set<SocialProvider>(brokered);
@@ -90,6 +102,11 @@ function returnUrl(): string {
   return Linking.createURL('auth');
 }
 
+/** The browser lane on its own — also the fallback when a native token is refused. */
+export async function signInWithBrowser(provider: SocialProvider): Promise<SocialResult> {
+  return brokered(provider);
+}
+
 async function brokered(provider: SocialProvider): Promise<SocialResult> {
   const started = await api.anonymous.get<{ url: string }>(`/auth/social/${provider}/start`, { returnTo: returnUrl() });
   // openAuthSessionAsync (ASWebAuthenticationSession / Custom Tabs) is what
@@ -108,7 +125,9 @@ async function brokered(provider: SocialProvider): Promise<SocialResult> {
 
 /** Native first (Apple on iOS), browser otherwise. A cancellation stops here. */
 export async function signInWith(provider: SocialProvider): Promise<SocialResult> {
-  if (provider === 'apple') {
+  // Native only when the platform can verify the token (`native`), or when we
+  // have not been told either way — a 412 then still lands in the browser.
+  if (provider === 'apple' && nativeReady.apple !== false) {
     try {
       return await nativeApple();
     } catch (failure) {

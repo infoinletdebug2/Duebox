@@ -45,13 +45,21 @@ export interface Household {
   timezone: string;
   currency: string;
   remindHour: number;
+  /** What slips through, from setup — the empty Home suggests these first. */
+  focus: Category[];
 }
 
 export type GateReason = 'item_limit' | 'scan_limit' | 'household' | 'custom_reminders';
 
 export interface Plan {
   tier: 'free' | 'pro';
-  source: 'store' | 'none';
+  /** `trial`: the 7-day Pro trial every household gets after setup. */
+  source: 'store' | 'trial' | 'none';
+  isTrial: boolean;
+  trialDays: number;
+  trialEndsAt: string | null;
+  /** This account has had its trial (running or over). */
+  trialUsed: boolean;
   renewsAt: string | null;
   expiresAt: string | null;
   /** `openItems: null` = unlimited. */
@@ -71,6 +79,10 @@ export interface Me {
   memberId: string;
   prefs: Prefs;
   plan: Plan;
+  /** The owner has not done the two-tap setup yet (a joining member never does). */
+  needsSetup: boolean;
+  /** The one-time welcome offer has been shown (always true for a member). */
+  offerSeen: boolean;
 }
 
 export interface Member {
@@ -206,7 +218,8 @@ export interface Scan {
 export interface CreatedUpload {
   scan?: Scan;
   documentId?: string;
-  uploads: { pageId: string; uploadUrl: string }[];
+  /** PUT each page to `uploadUrl` with exactly `headers` — the URL is signed over them. */
+  uploads: { pageId: string; uploadUrl: string; headers?: Record<string, string> }[];
 }
 
 /* ── billing ──────────────────────────────────────────────────────────── */

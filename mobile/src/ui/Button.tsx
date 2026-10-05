@@ -32,6 +32,8 @@ interface ButtonProps {
   onPress?: () => void;
   tone?: Tone;
   icon?: IconName;
+  /** A drawn mark before the label (a provider's logo); wins over `icon`. */
+  leading?: React.ReactNode;
   loading?: boolean;
   disabled?: boolean;
   full?: boolean;
@@ -44,7 +46,7 @@ interface ButtonProps {
  * One primary (accent) button per screen. Text on accent is ink, never white
  * (DESIGN-SYSTEM §3: contrast 10:1).
  */
-export function Button({ label, onPress, tone = 'primary', icon, loading, disabled, full = true, small, testID, style }: ButtonProps) {
+export function Button({ label, onPress, tone = 'primary', icon, leading, loading, disabled, full = true, small, testID, style }: ButtonProps) {
   const c = useColors();
   const s = useStyles();
   const fg =
@@ -62,7 +64,7 @@ export function Button({ label, onPress, tone = 'primary', icon, loading, disabl
         <ActivityIndicator color={fg} />
       ) : (
         <View style={s.row}>
-          {icon ? <Icon name={icon} size={small ? 16 : 19} color={fg} /> : null}
+          {leading ?? (icon ? <Icon name={icon} size={small ? 16 : 19} color={fg} /> : null)}
           <T variant="callout" style={[{ color: fg, fontFamily: 'Manrope_600SemiBold' }]}>
             {label}
           </T>

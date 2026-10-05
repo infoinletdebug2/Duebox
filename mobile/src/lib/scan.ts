@@ -86,7 +86,7 @@ async function putPages(prepared: { blob: Blob; mime: string }[], uploads: Creat
   for (const [i, up] of uploads.entries()) {
     const page = prepared[i];
     if (!page) continue;
-    const res = await fetch(up.uploadUrl, { method: 'PUT', headers: { 'content-type': page.mime }, body: page.blob });
+    const res = await fetch(up.uploadUrl, { method: 'PUT', headers: up.headers ?? { 'content-type': page.mime }, body: page.blob });
     if (!res.ok) throw new Error('A page didn’t upload. Check your connection and try again.');
     done += 1;
     onProgress?.(done, prepared.length);

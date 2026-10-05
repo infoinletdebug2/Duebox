@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, bindSession } from '../api/client';
 import { clearSession, loadSession, saveSession } from './storage';
-import { signInWith, type SocialProvider } from './social';
+import { signInWith, signInWithBrowser, type SocialProvider } from './social';
 import { unregisterPush } from '../notifications/push';
 import type { AuthResult, Household, Me, Plan, Prefs, Role, Session } from '../types';
 
@@ -24,14 +24,20 @@ interface AuthValue {
   isPro: boolean;
   loading: boolean;
   isOwner: boolean;
+  /** Signed in, owner, two-tap setup not done yet → /setup. */
+  needsSetup: boolean;
+  /** Setup done, the one-time welcome offer not shown yet → /offer. */
+  needsOffer: boolean;
 
   signIn(email: string, password: string): Promise<Me | null>;
-  register(input: { email: string; password: string; name: string }): Promise<Me | null>;
+  register(input: { email: string; password: string; name?: string }): Promise<Me | null>;
   signInWithProvider(provider: SocialProvider): Promise<Me | null>;
   completeSocialSignIn(code: string): Promise<Me | null>;
   signOut(): Promise<void>;
   refresh(): Promise<Me | null>;
   setPlan(next: Plan): void;
+  /** Adopt a fresh `Me` the server returned (setup, household changes). */
+  setMeData(next: Me): void;
   setPrefs(next: Prefs): void;
   markVerified(): void;
 }
@@ -121,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (input: { email: string; password: string; name: string }) =>
+    async (input: { email: string; password: string; name?: string }) =>
       adopt(
         await api.anonymous.post<AuthResult>('/auth/register', {
           ...input,
@@ -133,17 +139,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = useCallback(
     async (provider: SocialProvider) => {
-      const result = await signInWith(provider);
-      const next =
-        result.kind === 'idToken'
-          ? await api.anonymous.post<AuthResult>('/auth/social/id-token', {
+      let result = await signInWith(provider);
+      if (result.kind === 'idToken') {
+        try {
+          return await adopt(
+            await api.anonymous.post<AuthResult>('/auth/social/id-token', {
               provider: result.provider,
               idToken: result.idToken,
               nonce: result.nonce,
               name: result.name,
-            })
-          : await api.anonymous.post<AuthResult>('/auth/social/complete', { code: result.code });
-      return adopt(next);
+            }),
+          );
+        } catch (failure) {
+          // 412: the platform holds no native credentials for this app yet, so
+          // the phone's token cannot be verified. The brokered sign-in in the
+          // browser still works — continue there instead of showing an error.
+          if (!(failure instanceof ApiError && (failure.status === 412 || failure.code === 'AUTH_PROVIDER_NOT_CONFIGURED'))) throw failure;
+          result = await signInWithBrowser(provider);
+          if (result.kind !== 'code') throw failure;
+        }
+      }
+      return adopt(await api.anonymous.post<AuthResult>('/auth/social/complete', { code: result.code }));
     },
     [adopt],
   );
@@ -165,6 +181,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setMe((current) => (current ? { ...current, plan: next } : current));
   }, []);
 
+  const setMeData = useCallback((next: Me) => setMe(next), []);
+
   const setPrefs = useCallback((next: Prefs) => {
     setMe((current) => (current ? { ...current, prefs: next } : current));
   }, []);
@@ -185,6 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isPro: me?.plan?.tier === 'pro',
       loading,
       isOwner: me?.role === 'owner',
+      needsSetup: Boolean(me?.needsSetup),
+      needsOffer: Boolean(me && !me.needsSetup && !me.offerSeen && me.role === 'owner'),
       signIn,
       register,
       signInWithProvider,
@@ -192,10 +212,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       refresh,
       setPlan,
+      setMeData,
       setPrefs,
       markVerified,
     }),
-    [session, me, loading, signIn, register, signInWithProvider, completeSocialSignIn, signOut, refresh, setPlan, setPrefs, markVerified],
+    [session, me, loading, signIn, register, signInWithProvider, completeSocialSignIn, signOut, refresh, setPlan, setMeData, setPrefs, markVerified],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

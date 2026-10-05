@@ -14,3 +14,6 @@ expo-env.d.ts
 **/harness/.chrome-discover/
 **/harness/.chrome-onboarding/
 **/harness/.chrome-*/
+
+# generated artwork masters (large); the app ships assets/discover/*.jpg
+mobile/assets/art-src/
