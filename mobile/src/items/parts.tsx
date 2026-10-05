@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { font, makeStyles, motion, radius, shadow, space, useColors, type Colors } from '../theme/tokens';
 import { T } from '../ui/Text';
-import { Button, Press, tap } from '../ui/Button';
+import { Press, tap } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Progress';
 import { TAB_BAR_BOTTOM, TAB_BAR_H } from '../ui/tabBar';
@@ -205,14 +205,18 @@ export function DueRow({ item, members, onDone, testID }: { item: Item; members?
 /* ── the hero ───────────────────────────────────────────────────────────── */
 
 /** NEXT UP — the nearest open item, on plum: the dated card, the countdown, Mark done. */
+/**
+ * The one thing due next, as a compact plum card: date tile, title, a
+ * countdown pill with the amount, and a round "done" button. One row — Home
+ * shows the whole week under it instead of one card filling the screen.
+ */
 export function NextUpHero({ item, onDone, busy }: { item: Item; onDone: () => void; busy?: boolean }) {
   const c = useColors();
   const s = useStyles();
   const router = useRouter();
   const late = item.daysLeft < 0;
   const n = Math.abs(item.daysLeft);
-  const big = item.daysLeft === 0 ? 'Today' : String(n);
-  const unit = item.daysLeft === 0 ? '' : late ? `${n === 1 ? 'day' : 'days'} late` : `${n === 1 ? 'day' : 'days'} left`;
+  const pill = item.daysLeft === 0 ? 'Due today' : late ? `${n} ${n === 1 ? 'day' : 'days'} late` : `${n} ${n === 1 ? 'day' : 'days'} left`;
 
   return (
     <Press
@@ -222,39 +226,38 @@ export function NextUpHero({ item, onDone, busy }: { item: Item; onDone: () => v
       testID="next-up"
     >
       <View style={[s.hero, shadow.lifted]}>
-        <View style={s.heroTop}>
-          <DateTile day={item.dueDate} urgency={late ? 'late' : item.daysLeft === 0 ? 'today' : 'soon'} size={64} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <T variant="caption" style={{ color: c.onBrandMuted }}>
-              Next up, due {weekdayName(item.dueDate)}
-            </T>
-            <T variant="title" numberOfLines={2} style={{ color: c.onBrand, fontSize: 23, lineHeight: 28 }}>
-              {item.title}
-            </T>
-            <T variant="callout" numberOfLines={1} style={{ color: c.onBrandMuted, fontFamily: font.medium }}>
-              {taskPhrase(item).replace(/^./, (x) => x.toUpperCase())}
-            </T>
-          </View>
-        </View>
-        <View style={s.heroDivider} />
-        <View style={s.heroBottom}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, flex: 1 }}>
-            <T variant="countdown" style={{ color: late ? '#FFB4AC' : c.accentOnBrand }}>
-              {big}
-            </T>
-            {unit ? (
-              <T variant="headline" style={{ color: c.onBrandMuted, marginBottom: 9 }}>
-                {unit}
+        <DateTile day={item.dueDate} urgency={late ? 'late' : item.daysLeft === 0 ? 'today' : 'soon'} size={52} />
+        <View style={{ flex: 1, gap: 4 }}>
+          <T variant="caption" numberOfLines={1} style={{ color: c.onBrandMuted }}>
+            Next up · {taskPhrase(item)}
+          </T>
+          <T variant="headline" numberOfLines={1} style={{ color: c.onBrand, fontFamily: font.display, fontSize: 19, lineHeight: 24 }}>
+            {item.title}
+          </T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <View style={[s.heroPill, { backgroundColor: late ? '#FFB4AC' : c.accentOnBrand }]}>
+              <T variant="caption" style={{ color: '#1E1229', fontFamily: font.bold }}>
+                {pill}
+              </T>
+            </View>
+            {item.amountCents !== null ? (
+              <T variant="callout" style={{ color: c.onBrand }}>
+                {money(item.amountCents)}
               </T>
             ) : null}
           </View>
-          {item.amountCents !== null ? (
-            <T variant="title" style={{ color: c.onBrand, marginBottom: 6 }}>
-              {money(item.amountCents)}
-            </T>
-          ) : null}
         </View>
-        <Button label="Mark done" icon="check" small onPress={onDone} loading={busy} testID="next-up-done" />
+        <Press
+          onPress={onDone}
+          disabled={busy}
+          accessibilityRole="button"
+          accessibilityLabel={`Mark ${item.title} done`}
+          hitSlop={8}
+          style={s.heroDone}
+          testID="next-up-done"
+        >
+          <Icon name="check" size={22} color="#1E1229" strokeWidth={2.6} />
+        </Press>
       </View>
     </Press>
   );
@@ -381,10 +384,9 @@ const useStyles = makeStyles((c) => ({
   pill: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 24, paddingHorizontal: space.sm + 2, borderRadius: radius.chip },
   row: { flexDirection: 'row', alignItems: 'center', paddingRight: space.xs, minHeight: 72 },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingVertical: space.md, paddingLeft: space.md },
-  hero: { backgroundColor: c.brand, borderRadius: radius.hero, padding: space.xl, gap: space.lg },
-  heroTop: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
-  heroDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.10)' },
-  heroBottom: { flexDirection: 'row', alignItems: 'flex-end', gap: space.md, marginTop: -space.sm },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: c.brand, borderRadius: radius.card, padding: space.md },
+  heroPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.chip },
+  heroDone: { width: 46, height: 46, borderRadius: 23, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   dayCell: {
     width: 46,
     paddingVertical: space.sm,

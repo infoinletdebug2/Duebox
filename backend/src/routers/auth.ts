@@ -75,15 +75,12 @@ export async function ensureProfile(c: Context, uid: string, seed?: { name?: str
   return row;
 }
 
-/** ISO region → the currency amounts are shown in. Anything unknown is USD. */
-const CURRENCY: Record<string, string> = {
-  US: 'USD', GB: 'GBP', CA: 'CAD', AU: 'AUD', NZ: 'NZD', IN: 'INR', BD: 'BDT', IE: 'EUR', DE: 'EUR', FR: 'EUR',
-  ES: 'EUR', IT: 'EUR', NL: 'EUR', BE: 'EUR', AT: 'EUR', PT: 'EUR', FI: 'EUR', GR: 'EUR', SG: 'SGD', AE: 'AED', ZA: 'ZAR',
-};
+/** Duebox is US-first: every amount is in US dollars, whatever the phone's region. */
+const CURRENCY = 'USD';
 
 /**
  * FR-A2: the first `/auth/me` makes the caller a household of their own, from
- * the `x-timezone` and `x-region` headers the app sends. One statement: the
+ * the `x-timezone` header the app sends (amounts are always USD). One statement: the
  * member row is unique per user, so a double request fails whole and the
  * loser simply re-reads the winner's household.
  */
@@ -91,8 +88,7 @@ async function ensureHousehold(c: Context, uid: string, email: string, profile: 
   if (await membership(c)) return;
   const zone = c.req.header('x-timezone') ?? '';
   const timezone = isValidZone(zone) && zone.length < 64 ? zone : 'America/New_York';
-  const region = (c.req.header('x-region') ?? '').toUpperCase().slice(0, 2);
-  const currency = CURRENCY[region] ?? 'USD';
+  const currency = CURRENCY;
   const displayName = profile.name ?? readableName(email);
   const first = displayName.split(' ')[0] ?? displayName;
   const householdId = id();

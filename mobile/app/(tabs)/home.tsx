@@ -15,6 +15,7 @@ import { Sheet } from '../../src/ui/Sheet';
 import { AllDone, EmptyTray } from '../../src/ui/artwork';
 import { useFabSpace } from '../../src/ui/tabBar';
 import { DueRow, NextUpHero, SectionHead, WeekRail, summarize } from '../../src/items/parts';
+import { PlanCard } from '../../src/billing/PlanCard';
 import { useDone } from '../../src/items/useDone';
 import { CATEGORY, money, plural } from '../../src/lib/format';
 import { localToday, longDate, weekdayName } from '../../src/lib/dates';
@@ -34,7 +35,7 @@ export default function Home() {
   const c = useColors();
   const s = useStyles();
   const bottom = useFabSpace();
-  const { plan, me } = useAuth();
+  const { me } = useAuth();
   const home = useHome();
   const { markDone, pending } = useDone();
   const [push, setPush] = useState<PushPermission | null>(null);
@@ -105,8 +106,6 @@ export default function Home() {
   const thisMonth = hide(data.thisMonth);
   const isEmpty = !data.nextUp && data.laterCount === 0 && data.overdue.length === 0;
   const showPushBanner = !isEmpty && (push === 'denied' || (push === 'undetermined' && asked));
-  const freeLimit = plan?.limits.openItems ?? null;
-  const used = plan?.usage.openItems ?? 0;
   const { line, monthCents } = summarize(data.overdue, data.thisWeek, data.thisMonth);
   const upcoming = [...data.thisWeek, ...data.thisMonth];
   const sub = monthCents > 0 ? `${money(monthCents)} due in the next 30 days` : data.nextUp ? `Next: ${data.nextUp.title}` : null;
@@ -116,6 +115,8 @@ export default function Home() {
       {isEmpty ? top('Nothing due yet.', 'Every deadline you add lands here, soonest first.') : top(line, sub)}
 
       {!isEmpty ? <WeekRail items={upcoming} overdueCount={data.overdue.length} onDay={(day, items) => setDayOpen({ day, items })} /> : null}
+
+      <PlanCard />
 
       {showPushBanner ? (
         <Banner icon="bell-off" message="Reminders are off — you’ll only see deadlines in the app." actionLabel="Turn on" onPress={() => router.push('/settings/notifications')} />
@@ -193,16 +194,6 @@ export default function Home() {
             </View>
           ) : null}
 
-          {freeLimit !== null && used >= freeLimit - 1 ? (
-            <Press onPress={() => router.push({ pathname: '/paywall', params: { reason: 'item_limit' } })} accessibilityRole="button" style={s.limit}>
-              <T variant="caption" tone="muted" style={{ flex: 1 }}>
-                {used} of {freeLimit} free deadlines used
-              </T>
-              <T variant="caption" tone="brand" style={{ fontFamily: font.bold }}>
-                Go unlimited
-              </T>
-            </Press>
-          ) : null}
         </>
       )}
 
@@ -223,7 +214,6 @@ const useStyles = makeStyles((c) => ({
   inbox: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: c.surface, borderRadius: radius.group, borderWidth: 1, borderColor: c.line, padding: space.md },
   inboxIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   later: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: space.lg, borderRadius: radius.group, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line },
-  limit: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },
 }));
 
 /** FR-H5 — one drawing, one sentence, one action; suggestions from setup's "what slips through". */

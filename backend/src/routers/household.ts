@@ -44,7 +44,8 @@ interface InviteRow {
   created_at: string;
 }
 
-const CURRENCIES = ['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'NZD', 'INR', 'BDT', 'SGD', 'AED', 'ZAR'] as const;
+/** US dollars only (Duebox is US-first). */
+const CURRENCIES = ['USD'] as const;
 
 /**
  * `household` — setup, settings, members and invites (SRS FR-A2…A4, FR-H).

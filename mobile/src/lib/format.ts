@@ -7,12 +7,11 @@ import { longDate, mediumDate } from './dates';
  * (CONTRACT §0.6: enum values never reach the UI as text).
  */
 
-let currency = 'USD';
+/** Duebox is US-first: every amount is shown in US dollars. */
+const currency = 'USD';
 
-/** Set once from the household (Me.household.currency). */
-export function setCurrency(code: string): void {
-  if (/^[A-Z]{3}$/.test(code)) currency = code;
-}
+/** Kept for callers; amounts are always USD. */
+export function setCurrency(_code: string): void {}
 
 /** "$412.00" — or "$412" when `compact` and the cents are zero. */
 export function money(cents: number | null | undefined, compact = false): string {
