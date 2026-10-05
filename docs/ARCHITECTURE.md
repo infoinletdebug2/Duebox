@@ -1,6 +1,6 @@
 # Duebox — Architecture
 
-Same shape as Clearbill and Keyhaven: an Expo app talks only to Duebox's Hono
+An Expo app talks only to Duebox's Hono
 worker. The worker holds the Xenition service key, the OpenRouter key and the
 Expo access token, and talks to Postgres, private storage, the stores, the AI
 reader and the push service. **No Xenition package and no secret on the phone.**
@@ -20,7 +20,7 @@ reader and the push service. **No Xenition package and no secret on the phone.**
 
 **Backend:** Hono 4 on Workers, `@xenition/sdk` (query builder, raw SQL,
 transactions, storage, auth, billing module), vitest, wrangler. Local dev on
-Node via `@hono/node-server` (`npm run dev`), as Clearbill.
+Node via `@hono/node-server` (`npm run dev`).
 
 **Mobile:** Expo 57, RN 0.86, expo-router, @tanstack/react-query (+ persisted
 cache), react-native-reanimated 4, react-native-gesture-handler,
@@ -47,7 +47,7 @@ duebox/
 │   │   ├── schema.ts          migrations (content-addressed; never edit an applied one)
 │   │   ├── migrate.ts · seed.ts · dev.ts
 │   │   ├── reader.ts          OpenRouter client — the ONLY AI call
-│   │   ├── push.ts            Expo push client — the ONLY push call (from Keyhaven)
+│   │   ├── push.ts            Expo push client — the ONLY push call
 │   │   ├── logic/             pure + tested
 │   │   │   ├── planner.ts     planReminders()
 │   │   │   ├── repeat.ts      nextDueDate()
@@ -75,7 +75,7 @@ duebox/
 
 ### 3.1 The reader
 
-- Model: `google/gemini-2.5-flash` via OpenRouter (proven in Clearbill), `temperature: 0`, `response_format: json_schema (strict)`, `provider.data_collection: 'deny'`, timeout 25 s.
+- Model: `google/gemini-2.5-flash` via OpenRouter, `temperature: 0`, `response_format: json_schema (strict)`, `provider.data_collection: 'deny'`, timeout 25 s.
 - Instructions, in short: "Find every action with a deadline in this document (max 3). For each, return the exact words the date came from as `evidence`. If there is no explicit date, return `dueDate: null` — never guess. Mask any reference number to its last 4 characters. Choose category and action from the lists."
 - Schema (abridged):
 
@@ -120,7 +120,7 @@ ORDER BY r.fire_at LIMIT 500
 1. Recipients: the assignee's user, else every active member; filtered by `dx__profile.prefs_*` (overdue kind uses `prefs_overdue`).
 2. Tokens: `dx__device` where `disabled_at IS NULL`.
 3. Message: title `"{Action} {title}"`, body `"in 6 days · $412.00"` / `"today"` / `"was due yesterday"`; `data: {itemId, url: 'duebox://item/<id>'}`; `categoryId: 'item_due'` (Done / Snooze actions).
-4. Send in batches of 100 to Expo Push (`push.ts`, copied from Keyhaven). `DeviceNotRegistered` → `disabled_at = now()`.
+4. Send in batches of 100 to Expo Push (`push.ts`). `DeviceNotRegistered` → `disabled_at = now()`.
 5. `sent_at = now()` on success; `attempts + 1` on a transient failure (retried next run).
 
 A reminder whose time passed more than 24 h ago (worker outage) is marked
@@ -161,5 +161,5 @@ same `series_id`, offsets kept) → plan its reminders → cancel the old item's
 | `PRO_MONTHLY_ID`, `PRO_YEARLY_ID` | var | byte-identical to the app's `EXPO_PUBLIC_*` |
 | `FREE_OPEN_ITEMS`, `FREE_SCANS`, `PRO_SCANS`, `MAX_MEMBERS` | var | 5 / 3 / 100 / 5 |
 | `DOC_BUCKET`, `DOC_URL_TTL_SECONDS` | var | private bucket, 900 |
-| Apple / Google store keys | secret | as Slatebook |
+| Apple / Google store keys | secret | `APPLE_KEY_ID/ISSUER_ID/PRIVATE_KEY`, `GOOGLE_CLIENT_EMAIL/PRIVATE_KEY` |
 | `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_PRO_MONTHLY_ID`, `EXPO_PUBLIC_PRO_YEARLY_ID`, `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_IOS_STORE_ID`, `EXPO_PUBLIC_ANDROID_PACKAGE` | `mobile/.env` | public ids only |

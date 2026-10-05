@@ -1,9 +1,7 @@
 # Duebox — Design System
 
 The specification; `mobile/src/theme/tokens.ts` implements it. Follows
-`knowledge/design.md` and `knowledge/visual-system.md`. Distinct from Hearth
-(teal), Benchly (jade), Keyhaven (clay/paper), Slatebook (slate/pencil) and
-Clearbill (ink/mint).
+`knowledge/design.md` and `knowledge/visual-system.md`. Its own palette — plum and marigold, never a stock green or teal.
 
 ---
 
@@ -143,7 +141,7 @@ when cents are zero in the hero only.
 **Own kit on React Native primitives, plus two focused libraries:**
 `react-native-reanimated` (motion) and `lucide-react-native` (icons). Sheets
 are RN `Modal` bottom sheets (they render on web, so the harness can shoot
-them). Base primitives are adapted from the Clearbill/Slatebook kit and
+them). Base primitives are adapted from a shared in-house kit and
 restyled with these tokens.
 
 **Considered and rejected for v1: HeroUI Native** (`heroui-native` 1.0.x, on

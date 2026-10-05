@@ -49,6 +49,10 @@ const jobsRouter = defineRouter({
 
 const api = createXenitionApi({
   modules: [],
+  // The app sends its timezone and region on every request (the household is
+  // made from them) and an idempotency key on Done/Snooze. Phones don't
+  // preflight; the web build does, and refused all three until listed here.
+  cors: { allowHeaders: ['x-timezone', 'x-region', 'idempotency-key'] },
   custom: [authRouter, householdRouter, itemsRouter, scansRouter, billingRouter, accountRouter, jobsRouter],
 });
 api.onError(handleError);

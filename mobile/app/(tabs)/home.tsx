@@ -113,7 +113,7 @@ export default function Home() {
 
   return (
     <Screen bottomPad={bottom} refreshing={home.isRefetching} onRefresh={() => void home.refetch()} testID="screen-home">
-      {isEmpty ? top('Your tray is empty.', 'Add the first thing with a date.') : top(line, sub)}
+      {isEmpty ? top('Nothing due yet.', 'Every deadline you add lands here, soonest first.') : top(line, sub)}
 
       {!isEmpty ? <WeekRail items={upcoming} overdueCount={data.overdue.length} onDay={(day, items) => setDayOpen({ day, items })} /> : null}
 

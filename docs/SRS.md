@@ -315,6 +315,6 @@ Prices on screen always come from the store at runtime.
 # 19. Open Questions
 
 1. Final name and store availability (Duebox is a placeholder).
-2. Which vision model has the best date accuracy per dollar on real letters (benchmark 20–30 redacted samples, as Clearbill did).
+2. Which vision model has the best date accuracy per dollar on real letters (benchmark 20–30 redacted samples).
 3. Lifetime purchase option (Expiro sells one) — decide after 30 days of data.
 4. Email-forward inbox in v1.1 — needs an inbound mail route on the worker.

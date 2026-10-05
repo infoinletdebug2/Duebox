@@ -322,6 +322,65 @@ const FLOWS = [
   },
 ];
 
+/**
+ * `--live`: ONE journey against the REAL worker (serve.mjs --web-only + npm run
+ * dev in backend/), as a brand-new person: sign up → skip the code → setup →
+ * the welcome offer → Home → add a deadline → see it on Home. The account is
+ * deleted afterwards through the API.
+ */
+const LIVE_EMAIL = `live+${Date.now()}@duebox.test`;
+const LIVE_PASSWORD = 'live-flow-Password-1';
+const LIVE_FLOWS = [
+  {
+    name: 'live: sign up → setup → 7-day trial offer → Home → first deadline',
+    async run() {
+      await open('/(auth)/sign-up', { signedIn: false, onboarded: true });
+      await see('Create your account');
+      await type('sign-up-email', LIVE_EMAIL);
+      await type('sign-up-password', LIVE_PASSWORD);
+      await click('sign-up-submit');
+      await see((t) => t.includes('Do this later') || t.includes('code'), 30_000);
+      await click('verify-later');
+      await see('What usually slips through?', 30_000);
+      await shot('live-1-setup');
+      await click('setup-pick-insurance');
+      await click('setup-next');
+      await click('setup-hour-8');
+      await click('setup-next');
+      const offer = await see('days of Pro have started', 30_000);
+      await shot('live-2-offer');
+      if (!offer.includes('7 days')) throw new Error('offer does not name the 7-day trial');
+      await click('offer-skip');
+      await see((t) => /Nothing due|Snap|first letter|Insurance/i.test(t), 30_000);
+      await shot('live-3-home-empty');
+      // Navigate in place — open() would clear the session this flow just made.
+      await page('Page.navigate', { url: `${WEB}/item/new` });
+      await see('What is it?', 30_000);
+      await click('template-Car insurance');
+      await click('form-due');
+      await see('Use this date');
+      await click('In a month');
+      await click('Use this date');
+      await wait(500);
+      await click('item-save');
+      await see((t) => !t.includes('What is it?'), 30_000);
+      await page('Page.navigate', { url: `${WEB}/` });
+      await see('Car insurance', 30_000);
+      await shot('live-4-home');
+    },
+  },
+];
+const LIVE = process.argv.includes('--live');
+
+async function liveCleanup() {
+  const API = 'http://localhost:8787/api/v1';
+  const login = await fetch(`${API}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: LIVE_EMAIL, password: LIVE_PASSWORD }) }).then((r) => r.json()).catch(() => null);
+  const token = login?.data?.accessToken;
+  if (!token) return console.log('  (live account not found for cleanup)');
+  const del = await fetch(`${API}/auth/me`, { method: 'DELETE', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: JSON.stringify({ password: LIVE_PASSWORD }) });
+  console.log(`  live account deleted: ${del.status}`);
+}
+
 /* ── run ─────────────────────────────────────────────────────────────────── */
 
 await rm(OUT, { recursive: true, force: true });
@@ -339,19 +398,22 @@ try {
   await page('Runtime.enable');
   await page('Emulation.setDeviceMetricsOverride', { width: 393, height: 852, deviceScaleFactor: 2, mobile: true });
 
-  for (const flow of FLOWS) {
+  const RUN = LIVE ? LIVE_FLOWS : FLOWS;
+  for (const flow of RUN) {
     try {
       await flow.run();
       console.log(`  ✓ ${flow.name}`);
     } catch (e) {
       failed += 1;
       console.log(`  ✗ ${flow.name}\n      ${e.message}  (at ${await url()})`);
-      await shot(`FAIL-${FLOWS.indexOf(flow) + 1}`);
+      await shot(`FAIL-${RUN.indexOf(flow) + 1}`);
     }
   }
   socket.close();
 } finally {
   chrome.kill();
+  if (LIVE) await liveCleanup();
 }
-console.log(`\n${FLOWS.length - failed}/${FLOWS.length} flows passed`);
+const total = LIVE ? LIVE_FLOWS.length : FLOWS.length;
+console.log(`\n${total - failed}/${total} flows passed`);
 if (failed) process.exitCode = 1;

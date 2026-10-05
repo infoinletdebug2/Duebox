@@ -109,7 +109,8 @@ interface Scan {
 
 interface Plan {
   tier: 'free' | 'pro';
-  source: 'store' | 'none';
+  source: 'store' | 'trial' | 'none';  // trial = the 7-day Pro trial that setup starts
+  isTrial: boolean; trialDays: number; trialEndsAt: string | null; trialUsed: boolean;
   renewsAt: string | null; expiresAt: string | null;
   limits: { openItems: number | null; scansPerMonth: number; members: number };   // null = unlimited
   usage: { openItems: number; scansThisMonth: number; month: string };
@@ -128,10 +129,12 @@ interface Home {
 
 interface Me {
   user: { id: string; email: string; name: string | null; emailVerified: boolean };
-  household: { id: string; name: string; timezone: string; currency: string; remindHour: number };
+  household: { id: string; name: string; timezone: string; currency: string; remindHour: number; focus: Category[] };
   role: Role; memberId: string;
   prefs: { reminders: boolean; overdue: boolean };
   plan: Plan;
+  needsSetup: boolean;   // owner has not done the two-tap setup → app opens /setup
+  offerSeen: boolean;    // the one-time welcome offer was shown (always true for a member)
 }
 ```
 
@@ -139,20 +142,22 @@ interface Me {
 
 ## 2. Endpoints
 
-### 2.1 Auth (public; hand-written over `@xenition/sdk` — copy Clearbill's `routers/auth.ts`, same shapes)
+### 2.1 Auth (public; hand-written over `@xenition/sdk` — same shapes as the platform's auth)
 
 `POST /auth/register {email, password, name, timezone}` · `/auth/login` · `/auth/refresh` · `/auth/logout {refreshToken}` ·
 `/auth/send-code` · `/auth/verify-code` · `/auth/forgot-password` · `/auth/reset-password` · `/auth/change-password {currentPassword, newPassword}` ·
 `GET /auth/social/providers` · `GET /auth/social/:provider/start?returnTo` · `POST /auth/social/complete {code}` · `POST /auth/social/id-token {provider, idToken, nonce?, name?}`
 
-Tokens: `{accessToken, refreshToken, expiresAt, user}`. The first `GET /auth/me` after sign-up creates the household (FR-A2) from the `x-timezone` and `x-region` headers the app sends on every request (CORS must allow `x-timezone`, `x-region`, `idempotency-key`).
+Tokens: `{accessToken, refreshToken, expiresAt, user}`. The first `GET /auth/me` after sign-up creates the household (FR-A2) from the `x-timezone` and `x-region` headers the app sends on every request (CORS allows `x-timezone`, `x-region`, `idempotency-key` — `src/index.ts`). Sign-up asks only email + password; the name is derived from the address until the person sets one.
 
 ### 2.2 Me, household, members
 
 | Method | Path | Access | Body → data |
 |---|---|---|---|
 | GET | `/auth/me` | user | → `Me` |
-| PATCH | `/auth/me` | user | `{name?, prefs?: {reminders?, overdue?}}` → `Me` |
+| PATCH | `/auth/me` | user | `{name?, prefs?: {reminders?, overdue?}, offerSeen?: true}` → `Me` |
+| PATCH | `/auth/me/attribution` | user | Meta install id + device context (`fbAnonId, attStatus, installPlatform, appVersion, osVersion, deviceModel, locale`) → `{saved: true}` |
+| POST | `/setup` | owner | `{focus?: Category[], remindHour?: 0..23}` → `Me & {trialStarted}`; marks setup done, starts the 7-day Pro trial once per account |
 | PATCH | `/household` | owner | `{name?, timezone?, currency?, remindHour? (0..23)}` → `Me` (re-plans reminders) |
 | GET | `/household/members` | member | → `Member[]` |
 | DELETE | `/household/members/:id` | owner | removes; their assigned items become unassigned |
@@ -193,6 +198,8 @@ Tokens: `{accessToken, refreshToken, expiresAt, user}`. The first `GET /auth/me`
 
 `GET /export?format=csv|json` returns the file body directly, not the envelope.
 
+Every upload entry is `{pageId, uploadUrl, headers}`: PUT with exactly `headers` (the URL is signed over them).
+
 Upload limits: image ≤ 4 MB each (after device resize), PDF ≤ 15 MB, ≤ 5 images or 1 PDF per scan.
 
 ### 2.5 Devices (push)
@@ -202,13 +209,14 @@ Upload limits: image ≤ 4 MB each (after device resize), PDF ≤ 15 MB, ≤ 5 i
 | POST | `/devices` | user | `{expoPushToken, platform: 'ios'\|'android'}` → `{ok: true}` (upsert; re-registers on every launch) |
 | DELETE | `/devices/:token` | user | on sign-out |
 
-### 2.6 Billing (same as Slatebook)
+### 2.6 Billing
 
 | Method | Path | Access | Body → data |
 |---|---|---|---|
 | GET | `/billing/plan` | member | → `Plan` |
 | GET | `/billing/products` | member | `?platform` → `{productId, label, period: 'month'\|'year', highlight}[]` |
 | POST | `/billing/verify` | owner | `{platform: 'apple', transactionId}` or `{platform: 'google', productId, purchaseToken}` → `Plan` |
+| POST | `/billing/trial` | owner | retry a trial start that failed at setup → `Plan` (409 once used) |
 | POST | `/billing/restore` | owner | `{originalTransactionId}` (Apple; Google replays `/verify`) → `Plan` |
 | POST | `/billing/apple/notifications` | Apple-signed | App Store Server Notifications v2 |
 | POST | `/billing/google/notifications` | Pub/Sub-signed | RTDN |
@@ -296,3 +304,11 @@ dx__usage     (household_id uuid, month text, scans integer default 0, primary k
 Soft-deleted: `dx__item`, `dx__document`, `dx__household` (derive the set
 from the migration SQL — `traps.md`). Everything cascades from
 `dx__household` for account deletion; storage objects are deleted after rows.
+
+---
+
+## 5. Internal
+
+| Method | Path | Access | Notes |
+|---|---|---|---|
+| POST | `/internal/jobs/deliver` | `x-job-secret` | Reminder delivery; the Workers cron calls it every 5 minutes in-process |

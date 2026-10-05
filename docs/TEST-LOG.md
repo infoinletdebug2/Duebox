@@ -3,6 +3,23 @@
 What has and has not been verified, in writing (`playbook.md` → "Reporting
 status honestly"). Newest first.
 
+## 2026-10-05 — backend built and tested live; first-run journey; Meta; reviews
+
+| Check | Result | Proves | Does NOT prove |
+|---|---|---|---|
+| Backend typecheck | ✅ 0 errors | | |
+| Backend unit tests (`npm test`) | ✅ 20/20 | DST-safe reminder instants (New York, London, Dhaka), planner, month-end repeats, extraction coercion, masking, reminder wording | Anything touching the database |
+| Migrations on the **production** gateway (`app_duebox`) | ✅ 15 applied, billing enabled, 8 products declared | Schema is valid Postgres on the real platform | — |
+| **curl API suite** (`bash scripts/api-test.sh`) against the real gateway | ✅ **173/173 checks**, run three times | Every route and its SQL: auth, household on first /auth/me, setup + 7-day trial once, offer flag, attribution, items (search, edit, snooze/done idempotency, monthly repeat made once, reopen, delete), attachments with a real PUT to storage, Free limits (402 item_limit / custom_reminders / household), invites, join with own deadlines, leave, export CSV/JSON, deletion with password proof | Store purchases (no store keys yet) |
+| AI read of a made-up renewal letter (`scripts/sample-letter.jpg`) | ✅ both deadlines found with the exact evidence; 4.8 s; confirmed into a deadline with its page attached | The OpenRouter path end to end | Accuracy on real, messy phone photos (benchmark still owed) |
+| Reminder delivery job | ✅ a due reminder picked up and sent to Expo Push; the fake token refused → kept for retry (`attempts 1`, not sent) | Cron path, Expo integration, retry bookkeeping | Arrival on a real phone |
+| Mobile typecheck | ✅ 0 errors | | |
+| Harness (stub) | ✅ 28/28 screens, including discover, setup, offer, review sheet | Every screen renders | Native modules |
+| Tap-through flows (stub) | ✅ 16/16 | Pitch (next/back/skip, flag), routing, setup sends `{focus, remindHour}`, offer marks itself seen server-side and asks once before leaving, plus home/item/scan/settings flows | — |
+| **Live flow** (`node harness/flows.mjs --live`, real worker + gateway) | ✅ 1/1 | A new person: sign up (email + password only) → setup → "7 days of Pro have started" offer → Home suggests the picked category → add a deadline → it shows on Home (31 days left). Account deleted after | Native sign-in sheets, push, IAP |
+| Bugs found and fixed | CORS refused `x-timezone`/`x-region`/`idempotency-key` from a browser (phones unaffected) · empty Home repeated "Your tray is empty" · setup tile label wrapped mid-word · test script counted days in UTC instead of the household zone | | |
+| Not yet | ⛔ store sandbox purchase/restore · Apple/Google native sign-in on a device · push on a phone · Meta events (dormant until an App ID is set) · deploy to Workers | | |
+
 ## 2026-10-04 — full review + interaction tests
 
 | Check | Result | Proves | Does NOT prove |
