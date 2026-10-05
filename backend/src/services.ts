@@ -84,7 +84,13 @@ export async function uploadUrl(c: Context, key: string, mime: string): Promise<
 export async function deleteStored(c: Context, keys: string[]): Promise<void> {
   await Promise.all(
     keys.filter(Boolean).map((key) =>
-      sdk(c).storage.delete(key, { bucket: bucket(c) }).catch((error: unknown) => console.error('storage delete failed:', error instanceof Error ? error.message : error)),
+      sdk(c)
+        .storage.delete(key, { bucket: bucket(c) })
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          // A page that was never uploaded (a scan abandoned mid-way) is already gone.
+          if (!/not found/i.test(message)) console.error('storage delete failed:', message);
+        }),
     ),
   );
 }
