@@ -452,6 +452,9 @@ export const itemsRouter = defineRouter({
   },
 });
 
+/** Smaller than any real photo or PDF page. */
+export const MIN_PAGE_BYTES = 1024;
+
 export function pageKey(householdId: string, documentId: string, pageId: string, mime: string): string {
   return `households/${householdId}/docs/${documentId}/${pageId}.${mime === 'application/pdf' ? 'pdf' : 'jpg'}`;
 }
@@ -467,6 +470,11 @@ export function parsePages(c: Context, raw: unknown): Parsed<{ mime: 'image/jpeg
     const bytes = typeof r.bytes === 'number' && Number.isInteger(r.bytes) ? r.bytes : -1;
     if (!mime) return { ok: false, field: 'pages', message: 'Pages must be JPEG photos or a PDF.' };
     const max = mime === 'application/pdf' ? maxPdfBytes(env(c)) : maxImageBytes(env(c));
+    // A real page is never this small: a phone that hands over a stub instead
+    // of the photo (seen: 14 bytes) must fail here, not as an AI read later.
+    if (bytes > 0 && bytes < MIN_PAGE_BYTES) {
+      return { ok: false, field: 'pages', message: 'That page didn’t come through. Take the photo again.' };
+    }
     if (bytes < 1 || bytes > max) {
       return { ok: false, field: 'pages', message: mime === 'application/pdf' ? 'That PDF is larger than 15 MB.' : 'A photo is larger than 4 MB.' };
     }

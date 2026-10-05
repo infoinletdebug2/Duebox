@@ -207,6 +207,16 @@ rm -f "$OUT.jpg"
 
 echo "scans"
 call POST /scans 400 '{"source":"fax","pages":[]}'
+call POST /scans 400 '{"source":"camera","pages":[{"mime":"image/jpeg","bytes":14}]}'
+check 'd.error.fields.pages==="INVALID"' 'a 14-byte "photo" is refused at once (the phone stub bug)'
+call POST /scans 201 '{"source":"camera","pages":[{"mime":"image/jpeg","bytes":4096}]}'
+STUB="$(js 'd.data.scan.id')"; STUB_URL="$(js 'd.data.uploads[0].uploadUrl')"; STUB_H="$(js 'Object.entries(d.data.uploads[0].headers).map(([k,v])=>k+": "+v).join("
+")')"
+SH=(); while IFS= read -r line; do [ -n "$line" ] && SH+=(-H "$line"); done <<< "$STUB_H"
+printf 'not-a-photo-14' > "$OUT.stub"; curl -s -o /dev/null -X PUT "$STUB_URL" "${SH[@]}" --data-binary @"$OUT.stub"; rm -f "$OUT.stub"
+call POST "/scans/$STUB/read" 422
+check 'd.error.code==="READ_FAILED" && /didn’t come through/.test(d.error.message)' 'a stub that slipped through is caught before the AI, with a plain message'
+call DELETE "/scans/$STUB" 200
 call POST /scans 201 '{"source":"camera","pages":[{"mime":"image/jpeg","bytes":2048}]}'
 SCAN="$(js 'd.data.scan.id')"
 check 'd.data.scan.status==="uploading" && d.data.uploads.length===1' 'scan created, one upload'

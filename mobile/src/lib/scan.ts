@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as DocumentPicker from 'expo-document-picker';
+import * as LegacyFS from 'expo-file-system/legacy';
 import { api } from '../api/client';
 import type { CreatedUpload } from '../types';
 
@@ -65,7 +66,16 @@ export async function pickPdf(): Promise<ScanPage | null> {
   return { uri: a.uri, mime: 'application/pdf', name: a.name };
 }
 
-async function prepare(page: ScanPage): Promise<{ uri: string; blob: Blob; mime: ScanPage['mime'] }> {
+interface Prepared {
+  uri: string;
+  mime: ScanPage['mime'];
+  /** The real size on disk — what the server checks and signs the upload for. */
+  bytes: number;
+  /** Web only: the browser's File/Blob. */
+  blob?: Blob;
+}
+
+async function prepare(page: ScanPage): Promise<Prepared> {
   let uri = page.uri;
   if (page.mime === 'image/jpeg') {
     const w = page.width ?? LONG_EDGE;
@@ -76,18 +86,39 @@ async function prepare(page: ScanPage): Promise<{ uri: string; blob: Blob; mime:
     const out = await ImageManipulator.manipulateAsync(uri, actions, { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG });
     uri = out.uri;
   }
-  const blob = await (await fetch(uri)).blob();
-  return { uri, blob, mime: page.mime };
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(uri)).blob();
+    return { uri, mime: page.mime, bytes: blob.size, blob };
+  }
+  // On a phone, `fetch(file://…).blob()` does NOT give the file: in Expo Go it
+  // came back as a 14-byte stub, which uploaded as the "photo" and the AI had
+  // nothing to read. The size comes from the file system, and the upload
+  // (putPages) streams the file itself.
+  const info = await LegacyFS.getInfoAsync(uri);
+  const bytes = info.exists && 'size' in info ? Number(info.size) : 0;
+  if (!bytes) throw new Error('That photo couldn’t be opened. Try taking it again.');
+  return { uri, mime: page.mime, bytes };
 }
 
-async function putPages(prepared: { blob: Blob; mime: string }[], uploads: CreatedUpload['uploads'], onProgress?: (done: number, total: number) => void) {
+async function putPages(prepared: Prepared[], uploads: CreatedUpload['uploads'], onProgress?: (done: number, total: number) => void) {
   let done = 0;
   onProgress?.(0, prepared.length);
   for (const [i, up] of uploads.entries()) {
     const page = prepared[i];
     if (!page) continue;
-    const res = await fetch(up.uploadUrl, { method: 'PUT', headers: up.headers ?? { 'content-type': page.mime }, body: page.blob });
-    if (!res.ok) throw new Error('A page didn’t upload. Check your connection and try again.');
+    const headers = up.headers ?? { 'content-type': page.mime };
+    let ok: boolean;
+    if (page.blob) {
+      ok = (await fetch(up.uploadUrl, { method: 'PUT', headers, body: page.blob })).ok;
+    } else {
+      const res = await LegacyFS.uploadAsync(up.uploadUrl, page.uri, {
+        httpMethod: 'PUT',
+        headers,
+        uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
+      });
+      ok = res.status >= 200 && res.status < 300;
+    }
+    if (!ok) throw new Error('A page didn’t upload. Check your connection and try again.');
     done += 1;
     onProgress?.(done, prepared.length);
   }
@@ -108,7 +139,7 @@ export async function uploadScan(pages: ScanPage[], source: ScanSource, onProgre
   const prepared = await prepareAll(pages);
   const created = await api.post<CreatedUpload>('/scans', {
     source,
-    pages: prepared.map((p) => ({ mime: p.mime, bytes: p.blob.size })),
+    pages: prepared.map((p) => ({ mime: p.mime, bytes: p.bytes })),
   });
   await putPages(prepared, created.uploads, onProgress);
   if (!created.scan) throw new Error('The scan wasn’t created. Try again.');
@@ -119,7 +150,7 @@ export async function uploadScan(pages: ScanPage[], source: ScanSource, onProgre
 export async function uploadAttachment(itemId: string, pages: ScanPage[], onProgress?: (done: number, total: number) => void): Promise<void> {
   const prepared = await prepareAll(pages);
   const created = await api.post<CreatedUpload>(`/items/${itemId}/attachments`, {
-    pages: prepared.map((p) => ({ mime: p.mime, bytes: p.blob.size })),
+    pages: prepared.map((p) => ({ mime: p.mime, bytes: p.bytes })),
   });
   await putPages(prepared, created.uploads, onProgress);
 }

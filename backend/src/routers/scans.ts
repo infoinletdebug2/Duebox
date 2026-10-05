@@ -16,7 +16,7 @@ import {
   today,
   transaction,
   uploadUrl,
-  uploaded,
+  uploadState,
 } from '../services';
 import { type DocumentRow, type ItemRow, type PageRow, int, instant, jsonOf } from '../rows';
 import { assertAssignee, defaultOffsets, insertItemStatement, pageKey, parseItemInput, parsePages, type ItemFields } from './items';
@@ -101,8 +101,13 @@ export const scansRouter = defineRouter({
       // A signed URL is issued whether or not the object exists, so ask for one
       // byte of each page: a missing upload is a 409 here, not a paid AI call,
       // a scan counted against the month and a scan marked failed.
-      const present = await Promise.all(signed.map((p) => (p.url ? uploaded(p.url) : false)));
-      if (present.some((ok) => !ok)) return fail(c, 'CONFLICT', 'The upload has not finished. Try again in a moment.', 409);
+      const states = await Promise.all(signed.map((p) => (p.url ? uploadState(p.url) : Promise.resolve('missing' as const))));
+      if (states.includes('missing')) return fail(c, 'CONFLICT', 'The upload has not finished. Try again in a moment.', 409);
+      if (states.includes('tiny')) {
+        // A stub instead of a photo: say so plainly, spend no AI call, count no scan.
+        await rawRows(c, `UPDATE dx__document SET status = 'failed', read_error = 'unreadable', updated_at = now() WHERE id = $1::uuid AND household_id = $2::uuid`, [d.id, me(c).householdId]);
+        return c.json({ success: false, error: { code: 'READ_FAILED', message: 'That photo didn’t come through. Take it again.', reason: 'unreadable' } }, 422);
+      }
 
       const householdId = me(c).householdId;
       await rawRows(c, `UPDATE dx__document SET status = 'reading', read_error = NULL, updated_at = now() WHERE id = $1::uuid AND household_id = $2::uuid`, [d.id, householdId]);

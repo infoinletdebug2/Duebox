@@ -80,14 +80,23 @@ export async function signedUrl(c: Context, key: string, ttl?: number): Promise<
   }
 }
 
-/** Whether a signed page URL points at an object that exists (one byte, never the page). */
-export async function uploaded(url: string): Promise<boolean> {
+/**
+ * What a signed page URL points at: nothing yet ('missing'), a stub far too
+ * small to be a page ('tiny' — a phone once uploaded 14 bytes instead of the
+ * photo), or a real upload ('ok'). One byte is asked for, never the page;
+ * the total size comes from Content-Range (or Content-Length if the range
+ * was ignored).
+ */
+export async function uploadState(url: string, minBytes = 1024): Promise<'missing' | 'tiny' | 'ok'> {
   try {
     const res = await fetch(url, { headers: { range: 'bytes=0-0' } });
     await res.body?.cancel().catch(() => undefined);
-    return res.ok;
+    if (!res.ok) return 'missing';
+    const range = /\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1];
+    const total = Number(range ?? res.headers.get('content-length') ?? NaN);
+    return Number.isFinite(total) && total < minBytes ? 'tiny' : 'ok';
   } catch {
-    return false;
+    return 'missing';
   }
 }
 
