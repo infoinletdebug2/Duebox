@@ -50,7 +50,26 @@ export function addMonths(day: string, n: number): string {
 }
 
 /** The device's local today — only as a fallback before the server says. */
+/**
+ * "Today" is the HOUSEHOLD's day, the same one the server counts due dates
+ * in — a phone travelling across time zones would otherwise label a deadline
+ * "due today" a day early or late. Set from the household on sign-in; the
+ * phone's own date until then.
+ */
+let householdZone: string | null = null;
+export function setHouseholdTimezone(zone: string | null | undefined): void {
+  householdZone = zone || null;
+}
+
 export function localToday(): string {
+  if (householdZone) {
+    try {
+      // en-CA formats as YYYY-MM-DD.
+      return new Intl.DateTimeFormat('en-CA', { timeZone: householdZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    } catch {
+      // an unknown zone falls through to the phone's date
+    }
+  }
   const now = new Date();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');

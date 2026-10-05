@@ -7,12 +7,12 @@ in priority order. Evidence for every "works" is in `TEST-LOG.md`.
 
 | Area | State | Evidence |
 |---|---|---|
-| Backend (Hono + `@xenition/sdk`) | Every route in `CONTRACT.md` built | 173/173 curl checks on the **production** gateway |
+| Backend (Hono + `@xenition/sdk` 0.2.8) | Every route in `CONTRACT.md` built | 218/218 curl checks on the **production** gateway, all 54 routes |
 | Database | 15 migrations applied to `app_duebox` on api.xenition.com; billing enabled; 8 products declared | `npm run migrate` |
-| AI letter reading | OpenRouter `google/gemini-2.5-flash`, `data_collection: deny`, references masked to last 4 | Made-up renewal letter: both deadlines + evidence, 4.8 s |
+| AI letter reading | Through Xenition: `sdk.ai.chat` with the page images, `noDataRetention`; the OpenRouter key is the app's AI key stored in Xenition (`scripts/ai-key.ts`); references masked to last 4 | Made-up renewal letter: both deadlines + evidence, 3.3 s |
 | Reminders | DST-safe planner, re-planned on every change, Expo Push cron every 5 min, retries | Unit tests + a live delivery through Expo |
 | 7-day Pro trial | Starts on the server when setup finishes, once per account; Free afterwards (5 items, 3 scans/month), never locked | curl suite |
-| First-run journey | Pitch (5 slides, generated art) → sign-up (email + password only, or Apple/Google) → two-tap setup → welcome offer → Home | Harness 28/28, flows 16/16, live flow 1/1 |
+| First-run journey | Pitch (5 slides, generated art) → sign-up (email + password only, or Apple/Google) → two-tap setup → welcome offer → Home | Harness 31/31, flows 16/16, live flow 1/1 |
 | Apple + Google sign-in | Native lane when the platform holds this app's client ids; otherwise the brokered browser lane; a 412 falls back automatically | Same code path proven in production elsewhere; not yet tried on a device for Duebox |
 | Meta measurement | SDK + ATT + attribution hand-off + server Conversions API | Dormant until keys are set (by design) |
 | Review prompt | Duebox sheet after the first deadline; once more after 3 done + 3 days; store sheet on Rate; no sentiment gate | Harness shot `43-review-prompt` |
@@ -20,7 +20,7 @@ in priority order. Evidence for every "works" is in `TEST-LOG.md`.
 ## 2. Run it
 
 See `README.md`. Secrets live only in `backend/.dev.vars` (gitignored) and
-Workers secrets: `XENITION_API_KEY`, `OPENROUTER_API_KEY`, `EXPO_ACCESS_TOKEN`,
+Workers secrets: `XENITION_API_KEY`, `EXPO_ACCESS_TOKEN`,
 `JOB_SECRET`, store keys, Meta keys. The phone holds no secret.
 
 ## 3. Open, in order
@@ -32,7 +32,7 @@ Workers secrets: `XENITION_API_KEY`, `OPENROUTER_API_KEY`, `EXPO_ACCESS_TOKEN`,
 5. **Meta**: create the Meta app, set `EXPO_PUBLIC_META_APP_ID` + `EXPO_PUBLIC_META_CLIENT_TOKEN` (mobile) and `META_APP_ID` + `META_CAPI_ACCESS_TOKEN` (worker), rebuild; check Events Manager → Test Events. Declare tracking in App Privacy.
 6. **Reader benchmark** on 20–30 redacted real letters, phone-photo quality.
 7. **Legal review** of `mobile/app/legal/*`.
-8. Rotate the OpenRouter key used during development.
+8. Rotate the OpenRouter key used during development: `OPENROUTER_API_KEY=<new> npx tsx --env-file=.dev.vars scripts/ai-key.ts` (updates it inside Xenition; no redeploy).
 
 ## 4. Where things are
 

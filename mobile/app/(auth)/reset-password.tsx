@@ -6,45 +6,46 @@ import { Field } from '../../src/ui/Controls';
 import { Button } from '../../src/ui/Button';
 import { T } from '../../src/ui/Text';
 import { AuthShell, FormMessage } from '../../src/account/AuthShell';
-import { formErrors, looksLikeEmail, MIN_PASSWORD } from '../../src/account/forms';
 import { CodeField } from '../../src/account/CodeField';
+import { formErrors, looksLikeEmail, MIN_PASSWORD } from '../../src/account/forms';
 
 /**
- * RESET PASSWORD — two ways in, one form:
- *   - the email's link (`duebox://reset-password?token=…&email=…`), code prefilled;
- *   - "I have a code" from Forgot password or Account, email carried over,
- *     the 6-digit code typed here.
- * The platform keys a reset by (email, code), so both always travel together.
+ * RESET PASSWORD — with the 6-digit CODE from the email. The platform's reset
+ * is code-based (a code keyed by email + purpose), not a link, so the address
+ * travels with the code; it arrives prefilled from Forgot password.
  */
 export default function ResetPassword() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ token?: string | string[]; email?: string | string[] }>();
-  const linkToken = Array.isArray(params.token) ? params.token[0] : params.token;
-  const linkEmail = Array.isArray(params.email) ? params.email[0] : params.email;
-  const [code, setCode] = useState(linkToken ?? '');
-  const [email] = useState((linkEmail ?? '').trim().toLowerCase());
+  const params = useLocalSearchParams<{ email?: string | string[] }>();
+  const initialEmail = (Array.isArray(params.email) ? params.email[0] : params.email) ?? '';
+  const passwordRef = useRef<TextInput>(null);
   const confirmRef = useRef<TextInput>(null);
+  const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [pending, setPending] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [local, setLocal] = useState<{ password?: string; confirm?: string; code?: string }>({});
+  const [local, setLocal] = useState<{ email?: string; code?: string; password?: string; confirm?: string }>({});
   const [done, setDone] = useState(false);
 
-  const server = formErrors(error, ['password', 'code']);
+  const server = formErrors(error, ['email', 'code', 'password']);
 
   const submit = async () => {
     const next: typeof local = {};
+    if (!looksLikeEmail(email)) next.email = 'Enter the email the code was sent to.';
+    if (!/^[0-9]{6}$/.test(code)) next.code = 'Enter the 6-digit code from your email.';
     if (password.length < MIN_PASSWORD) next.password = `Use at least ${MIN_PASSWORD} characters.`;
     if (confirm !== password) next.confirm = 'Those two don’t match.';
-    if (!code.trim()) next.code = 'Enter the code from your email.';
     setLocal(next);
-    if (next.password || next.confirm || next.code) return;
+    if (Object.keys(next).length > 0) return;
 
     setPending(true);
     setError(null);
     try {
-      await api.anonymous.post<{ reset: boolean }>('/auth/reset-password', { token: code.trim(), email, password });
+      await api.anonymous.post<{ reset: boolean }>('/auth/reset-password', { email: email.trim().toLowerCase(), code, password });
       setDone(true);
     } catch (failure) {
       setError(failure);
@@ -53,13 +54,23 @@ export default function ResetPassword() {
     }
   };
 
-  if (!looksLikeEmail(email)) {
-    return (
-      <AuthShell title="Start from your email" lead="We need to know which account this is for. Ask for a fresh code — it only takes a moment." testID="screen-reset-missing">
-        <Button label="Send a new link" onPress={() => router.replace('/(auth)/forgot-password')} testID="reset-new-link" />
-      </AuthShell>
-    );
-  }
+  const resend = async () => {
+    if (!looksLikeEmail(email)) {
+      setLocal({ email: 'Enter the email the code was sent to.' });
+      return;
+    }
+    setResending(true);
+    setError(null);
+    try {
+      await api.anonymous.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
+      setCode('');
+      setResent(true);
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setResending(false);
+    }
+  };
 
   if (done) {
     return (
@@ -70,11 +81,36 @@ export default function ResetPassword() {
   }
 
   return (
-    <AuthShell title="Choose a new password" lead={`We sent a code to ${email}. At least ${MIN_PASSWORD} characters for the new password.`} onBack={() => router.replace('/(auth)/welcome')} testID="screen-reset">
-      {!linkToken ? (
-        <CodeField value={code} onChange={setCode} error={local.code ?? server.fields.code} testID="reset-code" />
-      ) : null}
+    <AuthShell
+      title="Enter your code"
+      lead={initialEmail ? `We emailed a 6-digit code to ${initialEmail}.` : 'Enter the 6-digit code from your email and a new password.'}
+      onBack={() => router.replace('/(auth)/sign-in')}
+      testID="screen-reset"
+    >
+      {initialEmail ? null : (
+        <Field
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          error={local.email ?? server.fields.email}
+          testID="reset-email"
+        />
+      )}
+      <CodeField
+        value={code}
+        onChange={(v) => {
+          setCode(v);
+          if (v.length === 6) passwordRef.current?.focus();
+        }}
+        error={local.code ?? server.fields.code}
+        testID="reset-code"
+      />
       <Field
+        ref={passwordRef}
         label="New password"
         value={password}
         onChangeText={setPassword}
@@ -99,13 +135,11 @@ export default function ResetPassword() {
         error={local.confirm}
         testID="reset-confirm"
       />
-      <FormMessage message={server.general} />
-      {server.general ? (
-        <T variant="caption" tone="brand" accessibilityRole="link" onPress={() => router.replace({ pathname: '/(auth)/forgot-password', params: { email } })}>
-          Code expired? Send a new one.
-        </T>
-      ) : null}
+      <FormMessage message={server.general ?? (resent ? 'A new code is on its way. Use the newest one.' : undefined)} />
       <Button label="Save new password" onPress={() => void submit()} loading={pending} testID="reset-submit" />
+      <T variant="caption" tone="brand" accessibilityRole="button" onPress={() => void resend()} testID="reset-resend">
+        {resending ? 'Sending…' : 'No code? Send a new one'}
+      </T>
     </AuthShell>
   );
 }

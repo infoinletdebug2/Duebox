@@ -99,3 +99,13 @@ export const META_ENABLED =
   /^\d+$/.test(META_APP_ID) &&
   META_CLIENT_TOKEN.length > 0 &&
   (Constants.expoConfig?.extra as { metaEnabled?: boolean } | undefined)?.metaEnabled === true;
+
+/**
+ * List prices (USD), for showing the value when the store cannot answer —
+ * Expo Go, the web, a store hiccup. Display only: a purchase always goes
+ * through the store at the store's own price. Must match the store listing.
+ */
+export const LIST_PRICE = {
+  monthly: num(process.env.EXPO_PUBLIC_LIST_PRICE_MONTHLY, 4.99),
+  yearly: num(process.env.EXPO_PUBLIC_LIST_PRICE_YEARLY, 34.99),
+} as const;

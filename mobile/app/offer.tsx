@@ -10,7 +10,7 @@ import { messageOf } from '../src/api/client';
 import { disconnect, isAvailable, loadPlans, purchase, PurchaseCancelled, restore, type StorePlan } from '../src/billing/store';
 import { api } from '../src/api/client';
 import { offerViewed } from '../src/lib/analytics';
-import { OFFER_PERCENT, TRIAL_DAYS } from '../src/config';
+import { LIST_PRICE, OFFER_IDS, OFFER_PERCENT, PRODUCT_IDS, TRIAL_DAYS } from '../src/config';
 import { font, GUTTER, radius, space } from '../src/theme/tokens';
 import { T } from '../src/ui/Text';
 import { tap } from '../src/ui/Button';
@@ -45,6 +45,16 @@ function money(amount: number, currency: string): string | null {
   } catch {
     return null;
   }
+}
+
+/** The list prices as plans, for when the store has none to give (display only). */
+function listPlans(kind: 'regular' | 'offer'): StorePlan[] {
+  const cut = kind === 'offer' ? 1 - OFFER_PERCENT / 100 : 1;
+  const ids = kind === 'offer' ? OFFER_IDS : PRODUCT_IDS;
+  return (['yearly', 'monthly'] as const).map((period) => {
+    const amount = Math.round(LIST_PRICE[period] * cut * 100) / 100;
+    return { productId: ids[period], period, price: money(amount, 'USD') ?? `$${amount.toFixed(2)}`, title: '', amount, currency: 'USD' };
+  });
 }
 
 export default function Offer() {
@@ -85,13 +95,18 @@ export default function Offer() {
 
   const goHome = () => router.replace('/(tabs)/home');
 
-  const offer = store.kind === 'ready' ? store.offer : [];
-  const regular = store.kind === 'ready' ? store.regular : [];
+  // The store's plans when it has them; otherwise the list prices, so the value
+  // always shows (the live apps' pattern). Buying needs the store either way.
+  const fromStore = store.kind === 'ready' && store.regular.length > 0;
+  const offer = fromStore ? store.offer : listPlans('offer');
+  const regular = fromStore ? store.regular : listPlans('regular');
+  const onTrial = Boolean(me?.plan.isTrial);
   const hasDiscount = OFFER_PERCENT > 0 && offer.length > 0 && regular.length > 0;
   const plans = hasDiscount ? offer : regular;
   const plan = plans.find((p) => p.period === period) ?? plans[0];
   const accent = GOLD;
-  const canBuy = store.kind === 'ready' && Boolean(plan);
+  const canBuy = fromStore && Boolean(plan);
+  const perDay = plan?.amount ? money(plan.amount / (plan.period === 'yearly' ? 365 : 30), plan.currency ?? 'USD') : null;
 
   const leave = () => {
     if (hasDiscount) setConfirmLeave(true);
@@ -134,7 +149,7 @@ export default function Offer() {
   };
 
   const enter = (delay: number) => (reduce ? undefined : FadeInDown.delay(delay).duration(380));
-  const cta = buying ? 'Opening the store…' : !canBuy ? 'Continue to Duebox' : hasDiscount ? `Claim ${OFFER_PERCENT}% off` : 'Subscribe';
+  const cta = buying ? 'Opening the store…' : hasDiscount ? `Claim ${OFFER_PERCENT}% off` : canBuy ? 'Subscribe' : 'Continue to Duebox';
 
   return (
     <View style={styles.screen} testID="screen-offer">
@@ -173,10 +188,10 @@ export default function Offer() {
       <View style={[styles.body, { paddingBottom: insets.bottom + space.sm }]}>
         <Reanimated.View entering={enter(0)} style={{ gap: 6 }}>
           <T variant="display" style={[styles.white, styles.headline]} accessibilityRole="header">
-            Your {TRIAL_DAYS} days of Pro have started
+            {onTrial ? `Your ${TRIAL_DAYS} days of Pro have started` : 'Everything in Duebox Pro'}
           </T>
           <T style={styles.lead}>
-            {hasDiscount ? `Because you just joined: ${OFFER_PERCENT}% off Duebox Pro — only on this screen.` : 'Everything is unlocked. Keep it after your trial with Pro.'}
+            {hasDiscount ? `Because you just joined: ${OFFER_PERCENT}% off Duebox Pro — only on this screen.` : onTrial ? 'Everything is unlocked. Keep it after your trial with Pro.' : 'Unlimited deadlines, more scans and sharing at home.'}
           </T>
         </Reanimated.View>
 
@@ -186,8 +201,30 @@ export default function Offer() {
           <Perk icon="users" tint={PEACH} text="Share with your household · cancel anytime" />
         </Reanimated.View>
 
+        {perDay ? (
+          <Reanimated.View entering={enter(110)} style={styles.value}>
+            <View style={styles.valueCell}>
+              <T variant="headline" style={{ color: accent }}>
+                {perDay}
+              </T>
+              <T variant="caption" style={styles.muted}>
+                a day
+              </T>
+            </View>
+            <View style={styles.valueDivider} />
+            <View style={[styles.valueCell, { flex: 2 }]}>
+              <T variant="headline" style={{ color: '#FFFFFF' }} numberOfLines={1}>
+                No deadline limit
+              </T>
+              <T variant="caption" style={styles.muted} numberOfLines={1}>
+                100 scans a month · household
+              </T>
+            </View>
+          </Reanimated.View>
+        ) : null}
+
         <Reanimated.View entering={enter(140)} style={styles.plans} accessibilityRole="radiogroup">
-          {store.kind === 'ready' && plans.length > 0 ? (
+          {plans.length > 0 ? (
             [...plans]
               .sort((a) => (a.period === 'yearly' ? -1 : 1))
               .map((p) => {
@@ -244,6 +281,12 @@ export default function Offer() {
           )}
         </Reanimated.View>
 
+        {!fromStore && store.kind !== 'loading' ? (
+          <T variant="caption" align="center" style={styles.muted}>
+            {store.kind === 'unavailable' ? 'Prices in USD. Subscribe in the App Store or Google Play version.' : 'Prices in USD. The store shows your final price.'}
+          </T>
+        ) : null}
+
         {error ? (
           <T variant="caption" style={{ color: '#FFB4AC' }} accessibilityRole="alert">
             {error}
@@ -251,7 +294,13 @@ export default function Offer() {
         ) : null}
 
         <Pressable
-          onPress={() => (canBuy ? void buy() : goHome())}
+          onPress={() =>
+            canBuy
+              ? void buy()
+              : hasDiscount
+                ? toast({ message: onTrial ? 'Purchases open in the App Store and Google Play versions. Your Pro trial is running.' : 'Purchases open in the App Store and Google Play versions of Duebox.' })
+                : goHome()
+          }
           disabled={buying}
           accessibilityRole="button"
           accessibilityLabel={cta}
@@ -262,7 +311,7 @@ export default function Offer() {
             {cta}
           </T>
           <View style={styles.ctaArrow}>
-            <Icon name={canBuy ? 'check' : 'arrow-right'} size={18} color="#FFFFFF" />
+            <Icon name={canBuy || hasDiscount ? 'check' : 'arrow-right'} size={18} color="#FFFFFF" />
           </View>
         </Pressable>
         <Pressable onPress={leave} accessibilityRole="button" style={styles.skip} testID="offer-skip">
@@ -327,7 +376,19 @@ function Perk({ icon, tint, text }: { icon: IconName; tint: string; text: string
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: INK },
   fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  art: { position: 'absolute', top: 0, left: 0, right: 0, height: 420 },
+  art: { position: 'absolute', top: 0, left: 0, right: 0, height: 360 },
+  value: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 16,
+    paddingVertical: space.sm + 2,
+    paddingHorizontal: space.md,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  valueCell: { flex: 1, gap: 1 },
+  valueDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.16)', marginHorizontal: space.md },
   white: { color: '#FFFFFF' },
   muted: { color: 'rgba(255,255,255,0.66)' },
   lead: { color: 'rgba(255,255,255,0.8)', fontSize: 16, lineHeight: 22 },

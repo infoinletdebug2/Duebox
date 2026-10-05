@@ -17,3 +17,4 @@ expo-env.d.ts
 
 # generated artwork masters (large); the app ships assets/discover/*.jpg
 mobile/assets/art-src/
+**/harness/flows/

@@ -15,6 +15,7 @@ import { invalidateItems } from '../src/api/hooks';
 import { ToastProvider } from '../src/ui/Sheet';
 import { useColors } from '../src/theme/tokens';
 import { setCurrency } from '../src/lib/format';
+import { setHouseholdTimezone } from '../src/lib/dates';
 import { installNotificationHandlers, registerPush } from '../src/notifications/push';
 import { appOpened, sendAttribution } from '../src/lib/analytics';
 import { noteFirstUse } from '../src/lib/review';
@@ -98,6 +99,11 @@ function AppShell() {
   useEffect(() => {
     if (household) setCurrency(household.currency);
   }, [household]);
+
+  // Due-date chips and "today" follow the household's time zone, as the server does.
+  useEffect(() => {
+    setHouseholdTimezone(household?.timezone);
+  }, [household?.timezone]);
 
   // Signed in: push registration and handlers.
   useEffect(() => {

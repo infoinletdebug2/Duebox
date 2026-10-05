@@ -3,6 +3,23 @@
 What has and has not been verified, in writing (`playbook.md` → "Reporting
 status honestly"). Newest first.
 
+## 2026-10-05 (evening) — pre-phone audit against Clearbill's fixes
+
+| Check | Result | Notes |
+|---|---|---|
+| AI through the Xenition SDK | ✅ | `sdk.ai.chat` with the page image, `noDataRetention`; OpenRouter key registered in Xenition for `app_duebox`, removed from the worker. Sample letter: both deadlines, 3.3 s |
+| SDK | ✅ 0.2.8 | The version that works inside Cloudflare Workers |
+| **Bug: deleted files stayed in storage** | Fixed | `storage.delete` encoded the slashes; delete now uses literal slashes. Proven: page URL 200 → 404 after deleting the attachment |
+| Bug: a read before the upload landed cost an AI call and a scan | Fixed | One-byte probe first → 409; proven: scan count unchanged |
+| Page URLs cached a 404 for hours | Fixed | One-off `?v=` on every signed URL |
+| Password reset | Code-based | The platform emails a 6-digit code (not a link): Forgot → code screen with the email carried; Account → same screen after proving the current password |
+| Trial users could not subscribe | Fixed | Paywall and Subscription treated the trial as "subscribed"; now only a store subscription is |
+| A trial that failed to start | Fixed | Subscription offers "Start my 7-day free trial" (`POST /billing/trial`) |
+| Offer in Expo Go | Fixed | Shows list prices (USD) with the discount struck through, value strip, a note that purchase happens in the store build |
+| "Today" | Fixed | Follows the household's time zone, as the server does |
+| curl suite | ✅ **218/218** on the production gateway (one earlier run hit a transient gateway 522; rerun clean) | |
+| Harness | ✅ 31/31 screens · flows 16/16 · live journey 1/1 | |
+
 ## 2026-10-05 (later) — every backend route covered; two password bugs found and fixed
 
 | Check | Result | Notes |

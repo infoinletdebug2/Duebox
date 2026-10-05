@@ -351,6 +351,9 @@ const LIVE_FLOWS = [
       await shot('live-2-offer');
       if (!offer.includes('7 days')) throw new Error('offer does not name the 7-day trial');
       await click('offer-skip');
+      // The welcome discount is on screen, so leaving asks once.
+      await see('This is a one-time offer');
+      await click('offer-leave');
       await see((t) => /Nothing due|Snap|first letter|Insurance/i.test(t), 30_000);
       await shot('live-3-home-empty');
       // Navigate in place — open() would clear the session this flow just made.

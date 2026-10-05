@@ -10,8 +10,8 @@ import { formErrors, looksLikeEmail } from '../../src/account/forms';
 /**
  * FORGOT PASSWORD (SCREENS #2). One field. The server answers the same way
  * whether or not the address has an account (no existence oracle), so this
- * screen does too. The email carries a code (and a link that opens
- * reset-password with it); "Enter the code" goes there with the email.
+ * screen does too. The platform emails a 6-digit CODE (not a link), so the
+ * next step is the code screen, with the address carried along.
  */
 export default function ForgotPassword() {
   const router = useRouter();
@@ -20,7 +20,6 @@ export default function ForgotPassword() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [local, setLocal] = useState<string | undefined>();
-  const [sent, setSent] = useState<string | null>(null);
 
   const server = formErrors(error, ['email']);
 
@@ -33,8 +32,9 @@ export default function ForgotPassword() {
     setPending(true);
     setError(null);
     try {
-      const result = await api.anonymous.post<{ sent: boolean; message: string }>('/auth/forgot-password', { email: email.trim().toLowerCase() });
-      setSent(result.message || 'If that address has an account, a reset link is on its way.');
+      const address = email.trim().toLowerCase();
+      await api.anonymous.post<{ sent: boolean; message: string }>('/auth/forgot-password', { email: address });
+      router.push({ pathname: '/(auth)/reset-password', params: { email: address } });
     } catch (failure) {
       setError(failure);
     } finally {
@@ -42,23 +42,8 @@ export default function ForgotPassword() {
     }
   };
 
-  if (sent) {
-    return (
-      <AuthShell
-        title="Check your email"
-        lead={sent}
-        testID="screen-forgot-sent"
-        below={<AuthLink label="Use a different email" onPress={() => setSent(null)} />}
-      >
-        <T tone="muted">Open the link on this phone, or type the code here. Codes work once, so use the newest one.</T>
-        <Button label="Enter the code" onPress={() => router.push({ pathname: '/(auth)/reset-password', params: { email: email.trim().toLowerCase() } })} testID="forgot-enter-code" />
-        <Button label="Back to sign in" tone="quiet" onPress={() => router.replace('/(auth)/sign-in')} testID="forgot-back" />
-      </AuthShell>
-    );
-  }
-
   return (
-    <AuthShell title="Reset your password" lead="Enter your email and we’ll send a code to choose a new one." testID="screen-forgot">
+    <AuthShell title="Reset your password" lead="Enter your email and we’ll send a 6-digit code to choose a new one." testID="screen-forgot" below={<AuthLink label="I already have a code" onPress={() => router.push({ pathname: '/(auth)/reset-password', params: email ? { email: email.trim().toLowerCase() } : {} })} />}>
       <Field
         label="Email"
         value={email}
@@ -73,9 +58,9 @@ export default function ForgotPassword() {
         testID="forgot-email"
       />
       <FormMessage message={server.general} />
-      <Button label="Send reset code" onPress={() => void submit()} loading={pending} testID="forgot-submit" />
+      <Button label="Send code" onPress={() => void submit()} loading={pending} testID="forgot-submit" />
       <T variant="caption" tone="faint">
-        Signed up with Apple or Google? You don’t have a Duebox password — use that button on the sign-in screen instead.
+        Used Apple or Google? Sign in with that button instead.
       </T>
     </AuthShell>
   );

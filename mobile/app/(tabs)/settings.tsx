@@ -45,11 +45,13 @@ export default function Settings() {
               {household?.name ?? 'Your home'}
             </T>
             <T variant="title" style={{ color: c.onBrand }}>
-              {isPro ? 'Duebox Pro' : 'Free plan'}
+              {isPro ? (plan?.isTrial ? 'Duebox Pro · trial' : 'Duebox Pro') : 'Free plan'}
             </T>
             <T variant="caption" style={{ color: c.onBrandMuted }}>
               {isPro
-                ? 'Unlimited deadlines and scans for your household'
+                ? plan?.isTrial && plan.trialEndsAt
+                  ? `Trial ends ${new Date(plan.trialEndsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · then Free unless you subscribe`
+                  : `Unlimited deadlines · ${plan?.limits.scansPerMonth ?? 100} scans a month for your household`
                 : plan
                   ? `${plan.usage.openItems} of ${plan.limits.openItems ?? '∞'} deadlines · ${plan.usage.scansThisMonth} of ${plan.limits.scansPerMonth} scans this month`
                   : 'Up to 5 deadlines · 3 scans a month'}
@@ -96,7 +98,7 @@ export default function Settings() {
           onPress={() => router.push('/settings/household')}
           testID="settings-household"
         />
-        <ListRow icon="crown" title="Subscription" value={isPro ? 'Pro' : 'Free'} onPress={() => router.push('/settings/subscription')} />
+        <ListRow icon="crown" title="Subscription" value={isPro ? (plan?.isTrial ? 'Pro trial' : 'Pro') : 'Free'} onPress={() => router.push('/settings/subscription')} />
       </Group>
 
       <Group title="Account">

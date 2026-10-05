@@ -1,5 +1,9 @@
 import { Linking, Platform, View } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { api, messageOf } from '../../src/api/client';
+import { trialStarted } from '../../src/lib/analytics';
+import type { Plan } from '../../src/types';
 import { useAuth } from '../../src/auth/context';
 import { ProgressBar } from '../../src/ui/Progress';
 import { space, useColors } from '../../src/theme/tokens';
@@ -18,7 +22,24 @@ export default function SubscriptionStatus() {
   const router = useRouter();
   const toast = useToast();
   const c = useColors();
-  const { plan, isPro, isOwner } = useAuth();
+  const { plan, isPro, isOwner, setPlan, me } = useAuth();
+  const [starting, setStarting] = useState(false);
+  // The trial is started at setup; if that start failed (it is swallowed so
+  // setup never breaks) the account has never had one — offer it here.
+  const trialAvailable = isOwner && plan?.tier === 'free' && !plan.trialUsed;
+  const startTrial = async () => {
+    setStarting(true);
+    try {
+      const next = await api.post<Plan>('/billing/trial');
+      setPlan(next);
+      trialStarted(next.trialDays, me?.user.id);
+      toast({ message: `Your ${next.trialDays} days of Pro have started.` });
+    } catch (failure) {
+      toast({ message: messageOf(failure) });
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const manage = () => {
     const url = Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions';
@@ -80,10 +101,13 @@ export default function SubscriptionStatus() {
         </View>
       </Card>
 
-      {isPro ? (
+      {trialAvailable ? (
+        <Button label={`Start my ${plan?.trialDays ?? 7}-day free trial`} icon="sparkles" onPress={() => void startTrial()} loading={starting} testID="subscription-start-trial" />
+      ) : null}
+      {isPro && plan?.source === 'store' ? (
         <Button label="Manage in the store" tone="secondary" onPress={manage} />
-      ) : (
-        <Button label={isOwner ? 'See Duebox Pro' : 'Ask the owner about Pro'} onPress={() => router.push({ pathname: '/paywall', params: { reason: 'default' } })} testID="subscription-upgrade" />
+      ) : trialAvailable ? null : (
+        <Button label={!isOwner ? 'Ask the owner about Pro' : plan?.isTrial ? 'Keep Pro after the trial' : 'See Duebox Pro'} onPress={() => router.push({ pathname: '/paywall', params: { reason: 'default' } })} testID="subscription-upgrade" />
       )}
       <Button label="Restore purchases" tone="quiet" onPress={() => router.push({ pathname: '/paywall', params: { reason: 'default' } })} />
       <T variant="caption" tone="faint" align="center">

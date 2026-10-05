@@ -110,8 +110,13 @@ function lookup(method, path, q) {
   if (method === 'PATCH' && m(/^\/items\/[^/]+$/)) return detail(ITEMS.find((i) => path.endsWith(i.id)) ?? ITEMS[0]);
   if (method === 'POST' && m(/^\/items\/[^/]+\/(snooze|reopen)$/)) return ITEMS.find((i) => path.includes(i.id)) ?? ITEMS[0];
   if (method === 'POST' && path === '/scans/s-1/confirm') return { items: [detail({ ...ITEMS[2], id: 'i-c1', title: 'School enrolment form' }), detail({ ...ITEMS[2], id: 'i-c2', title: 'Term fees' })] };
-  if (method === 'POST' && path === '/setup') return { ...ME, offerSeen: false, plan: PLAN_TRIAL, trialStarted: true };
-  if (method === 'PATCH' && path === '/auth/me') return { ...ME, offerSeen: true };
+  // Like the real worker, finishing setup starts the trial and every later answer carries it.
+  if (method === 'POST' && path === '/setup') { ME.plan = PLAN_TRIAL; return { ...ME, offerSeen: false, trialStarted: true }; }
+  if (method === 'PATCH' && path === '/auth/me') {
+    const answer = { ...ME, offerSeen: true };
+    ME.plan = PLAN; // the offer has seen the trial; later flows get the plan this run was started with
+    return answer;
+  }
   if (method !== 'GET') return null;
   if (path === '/auth/me') return ME;
   if (path === '/auth/social/providers') return [{ provider: 'apple' }, { provider: 'google' }];

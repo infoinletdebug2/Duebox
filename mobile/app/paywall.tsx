@@ -54,7 +54,10 @@ export default function Paywall() {
   const s = useStyles();
   const params = useLocalSearchParams<{ reason?: string }>();
   const reason = (params.reason ?? 'default') as GateReason | 'default';
-  const { isOwner, isPro, setPlan, plan } = useAuth();
+  const { isOwner, setPlan, plan } = useAuth();
+  // Subscribed = a store subscription. A household on its free Pro trial still
+  // sees the plans, so it can keep Pro when the trial ends.
+  const isPro = plan?.source === 'store' && plan.tier === 'pro';
   const [store, setStore] = useState<StoreState>({ kind: 'loading' });
   const [selected, setSelected] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
@@ -141,7 +144,11 @@ export default function Paywall() {
     void Linking.openURL(url).catch(() => toast({ message: 'Open your store account’s Subscriptions page to manage Duebox.' }));
   };
 
-  const head = isPro ? { title: 'You’re on Duebox Pro', lead: 'Thank you. Everything is unlocked for everyone in your household.' } : HEADLINE[reason] ?? HEADLINE.default;
+  const head = isPro
+    ? { title: 'You’re on Duebox Pro', lead: 'Thank you. Everything is unlocked for everyone in your household.' }
+    : plan?.isTrial && reason === 'default'
+      ? { title: 'Keep Pro after your trial', lead: 'Everything stays unlocked: unlimited deadlines, 100 scans a month, your household together.' }
+      : HEADLINE[reason] ?? HEADLINE.default;
   const selectedPlan = store.kind === 'ready' ? store.plans.find((p) => p.productId === selected) : undefined;
   const isYearly = selectedPlan?.period === 'yearly';
   const showPlans = !isPro && isOwner && store.kind === 'ready' && store.plans.length > 0;
