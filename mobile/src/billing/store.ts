@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 import type { Purchase, PurchaseIOS, PurchaseAndroid } from 'react-native-iap';
 import { api } from '../api/client';
 import type { Plan } from '../types';
-import { IS_EXPO_GO, PRODUCT_IDS } from '../config';
+import { IS_EXPO_GO, OFFER_IDS, PRODUCT_IDS } from '../config';
+import { purchaseCompleted } from '../lib/analytics';
 
 /**
  * react-native-iap is loaded LAZILY, and that is not an optimisation.
@@ -78,6 +79,9 @@ export interface StorePlan {
   /** Exactly as the store formats it — "$9.99", "৳499". Never re-formatted. */
   price: string;
   title: string;
+  /** The store's own number and currency, for per-month framing only. */
+  amount: number | null;
+  currency: string | null;
 }
 
 /** The person dismissed the store sheet. Not an error. */
@@ -98,7 +102,29 @@ let connected = false;
  * caller has a sensible thing to do with false and nothing sensible to do with
  * an exception.
  */
+/**
+ * Harness only (web build, never a phone): `localStorage['duebox.harnessStore']
+ * = '1'` makes the store answer with sample prices so the paywall and the
+ * welcome offer can be screenshotted and tapped through. Purchases still fail.
+ */
+function harnessStore(): boolean {
+  if (Platform.OS !== 'web') return false;
+  try {
+    return globalThis.localStorage?.getItem('duebox.harnessStore') === '1';
+  } catch {
+    return false;
+  }
+}
+
+const HARNESS_PRICES: Record<string, { price: string; amount: number }> = {
+  [PRODUCT_IDS.monthly]: { price: '$4.99', amount: 4.99 },
+  [PRODUCT_IDS.yearly]: { price: '$34.99', amount: 34.99 },
+  [OFFER_IDS.monthly]: { price: '$3.99', amount: 3.99 },
+  [OFFER_IDS.yearly]: { price: '$27.99', amount: 27.99 },
+};
+
 export async function isAvailable(): Promise<boolean> {
+  if (harnessStore()) return true;
   if (connected) return true;
   const IAP = await loadIap();
   if (!IAP) return false;
@@ -119,14 +145,25 @@ export async function isAvailable(): Promise<boolean> {
  * server constant is the wrong number for most of the world and a store
  * rejection for the rest.
  */
-export async function loadPlans(): Promise<StorePlan[]> {
+export async function loadPlans(which: 'regular' | 'offer' = 'regular'): Promise<StorePlan[]> {
+  const ids = which === 'offer' ? OFFER_IDS : PRODUCT_IDS;
+  if (harnessStore()) {
+    return (['monthly', 'yearly'] as const).map((period) => ({
+      productId: ids[period],
+      period,
+      price: HARNESS_PRICES[ids[period]]!.price,
+      title: period === 'yearly' ? 'Yearly' : 'Monthly',
+      amount: HARNESS_PRICES[ids[period]]!.amount,
+      currency: 'USD',
+    }));
+  }
   if (!(await isAvailable())) return [];
   const IAP = await loadIap();
   if (!IAP) return [];
 
   const wanted: Array<{ productId: string; period: PlanPeriod }> = [
-    { productId: PRODUCT_IDS.monthly, period: 'monthly' },
-    { productId: PRODUCT_IDS.yearly, period: 'yearly' },
+    { productId: ids.monthly, period: 'monthly' },
+    { productId: ids.yearly, period: 'yearly' },
   ];
 
   const found = await IAP.fetchProducts({
@@ -148,6 +185,8 @@ export async function loadPlans(): Promise<StorePlan[]> {
         period: entry.period,
         price: product.displayPrice ?? '',
         title: product.title ?? (entry.period === 'yearly' ? 'Yearly' : 'Monthly'),
+        amount: typeof (product as { price?: unknown }).price === 'number' ? (product as { price: number }).price : null,
+        currency: typeof (product as { currency?: unknown }).currency === 'string' ? (product as { currency: string }).currency : null,
       },
     ];
   });
@@ -224,6 +263,9 @@ export async function purchase(productId: string): Promise<Plan> {
 
   const plan = await verify(result);
   await IAP.finishTransaction({ purchase: result, isConsumable: false }).catch(() => undefined);
+  const period = productId === PRODUCT_IDS.yearly || productId === OFFER_IDS.yearly ? 'yearly' : 'monthly';
+  const eventId = Platform.OS === 'ios' ? ((result as PurchaseIOS).transactionId ?? result.id) : ((result as PurchaseAndroid).purchaseToken ?? result.id).slice(0, 64);
+  purchaseCompleted(productId, period, String(eventId));
   return plan;
 }
 

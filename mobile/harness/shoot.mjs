@@ -45,7 +45,9 @@ const SESSION = {
 
 /** `expect` names words only the WORKING screen has — stub data, not titles. */
 const SCREENS = [
-  { path: '/onboarding', name: '01-onboarding', anonymous: true, expect: ['Snap the letter'] },
+  { path: '/discover', name: '01-discover', anonymous: true, settle: 1200, expect: ['Deadlines hide in paper', 'Skip'] },
+  { path: '/setup', name: '05-setup', settle: 1200, expect: ['What usually slips through?', 'Insurance', 'Continue'] },
+  { path: '/offer', name: '06-offer', settle: 1600, storage: { 'duebox.harnessStore': '1' }, expect: ['days of Pro have started', '$27.99', 'Restore purchases'] },
   { path: '/(auth)/welcome', name: '02-welcome', anonymous: true, expect: ['remember the date', 'Continue with email'] },
   { path: '/(auth)/sign-up', name: '03-sign-up', anonymous: true, expect: ['Email', 'Password'] },
   { path: '/(auth)/sign-in', name: '04-sign-in', anonymous: true, expect: ['Email', 'Password'] },
@@ -70,6 +72,7 @@ const SCREENS = [
   { path: '/legal/privacy', name: '40-privacy', anonymous: true, expect: ['OpenRouter', 'last 4'] },
   { path: '/legal/terms', name: '41-terms', anonymous: true, expect: ['auto-renewing'] },
   { path: '/join/K7PQ2M', name: '42-join', expect: ['The Riveras'] },
+  { path: '/(tabs)/home?review=1', name: '43-review-prompt', settle: 2600, expect: ['First deadline, filed', 'Rate Duebox'] },
 ];
 
 /** `--dark` shoots everything in dark mode into shots-dark/. */
@@ -163,6 +166,11 @@ async function main() {
       expression: screen.anonymous
         ? `localStorage.removeItem('duebox.session')`
         : `localStorage.setItem('duebox.session', ${JSON.stringify(JSON.stringify(SESSION))})`,
+    });
+    await page('Runtime.evaluate', {
+      expression: `localStorage.removeItem('duebox.harnessStore');${Object.entries(screen.storage ?? {})
+        .map(([k, v]) => `localStorage.setItem(${JSON.stringify(k)}, ${JSON.stringify(v)});`)
+        .join('')}`,
     });
 
     await page('Page.navigate', { url: `${WEB}${screen.path}` });

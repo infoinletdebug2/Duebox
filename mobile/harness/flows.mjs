@@ -125,49 +125,78 @@ async function shot(name) {
 
 const FLOWS = [
   {
-    name: 'onboarding: slides → two questions → summary → welcome, answers saved',
+    name: 'discover: five slides → Get started → welcome, flag set',
     async run() {
-      await open('/onboarding', { signedIn: false, onboarded: false });
-      await see('Snap the letter');
-      await click('onboarding-next');
+      await open('/discover', { signedIn: false, onboarded: false });
+      await see('Deadlines hide in paper');
+      await click('discover-next');
+      await see('Snap the letter.');
+      await click('discover-next');
+      await see('See exactly where the date came from');
+      await click('discover-back');
+      await see('Snap the letter.');
+      await click('discover-next');
+      await click('discover-next');
       await see('Reminded before');
-      await click('onboarding-next');
-      await see('Run the house');
-      await click('onboarding-next');
-      await see('What usually slips through?');
-      await click('pick-insurance');
-      await click('pick-vehicle');
-      await click('onboarding-next');
-      await see('When should reminders arrive?');
-      await click('hour-18');
-      await click('onboarding-next');
-      const t = await see('You’re all set');
-      if (!t.includes('Reminders at 6:00 PM')) throw new Error('summary does not show the chosen hour');
-      if (!/start with insurance and vehicle/i.test(t)) throw new Error('summary does not name the picked categories');
-      await shot('01-onboarding-summary');
-      await click('onboarding-finish');
+      await click('discover-next');
+      await see('Share the load at home');
+      await shot('01-discover-last');
+      await click('discover-next');
       await see('remember the date');
-      const saved = JSON.parse((await evaluate("localStorage.getItem('duebox.discovery')")) ?? 'null');
-      if (saved?.remindHour !== 18 || !saved?.categories?.includes('insurance')) throw new Error(`answers not saved: ${JSON.stringify(saved)}`);
       if ((await evaluate("localStorage.getItem('duebox.onboarded')")) !== '1') throw new Error('onboarded flag not set');
     },
   },
   {
-    name: 'onboarding: Skip goes straight to welcome',
+    name: 'discover: Skip goes straight to welcome',
     async run() {
-      await open('/onboarding', { signedIn: false, onboarded: false });
-      await see('Snap the letter');
-      await click('onboarding-skip');
+      await open('/discover', { signedIn: false, onboarded: false });
+      await see('Deadlines hide in paper');
+      await click('discover-skip');
       await see('remember the date');
     },
   },
   {
-    name: 'first launch routes to onboarding; later launches to welcome',
+    name: 'first launch routes to the pitch; later launches to welcome',
     async run() {
       await open('/', { signedIn: false, onboarded: false });
-      await see('Snap the letter');
+      await see('Deadlines hide in paper');
       await open('/', { signedIn: false, onboarded: true });
       await see('remember the date');
+    },
+  },
+  {
+    name: 'setup: two taps → POST /setup with the answers → welcome offer',
+    async run() {
+      await open('/setup');
+      await see('What usually slips through?');
+      await click('setup-pick-insurance');
+      await click('setup-pick-vehicle');
+      await see('2 picked');
+      await click('setup-next');
+      await see('When should reminders arrive?');
+      await click('setup-hour-18');
+      await click('setup-next');
+      await see('days of Pro have started');
+      const sent = JSON.parse((await evaluate("fetch('http://localhost:8787/api/v1/__last/POST/setup').then(r => r.text())")) ?? 'null');
+      if (sent?.remindHour !== 18 || JSON.stringify(sent?.focus) !== '["insurance","vehicle"]') throw new Error(`setup sent ${JSON.stringify(sent)}`);
+    },
+  },
+  {
+    name: 'offer: marks itself seen; leaving asks once about the discount → home',
+    async run() {
+      await open('/offer');
+      await evaluate("localStorage.setItem('duebox.harnessStore','1')");
+      await open('/offer');
+      await evaluate("localStorage.setItem('duebox.harnessStore','1')");
+      await page('Page.reload');
+      await see('$27.99');
+      const seen = JSON.parse((await evaluate("fetch('http://localhost:8787/api/v1/__last/PATCH/auth/me').then(r => r.text())")) ?? 'null');
+      if (seen?.offerSeen !== true) throw new Error(`offer not marked seen: ${JSON.stringify(seen)}`);
+      await click('offer-plan-monthly');
+      await click('offer-skip');
+      await see('This is a one-time offer');
+      await click('offer-leave');
+      await see((t) => t.includes('due this week') || t.includes('Next up'));
     },
   },
   {

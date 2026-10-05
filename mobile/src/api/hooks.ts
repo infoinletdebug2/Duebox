@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { coreActionCompleted } from '../lib/analytics';
+import { noteDeadlineSaved } from '../lib/review';
 import { api, newIdempotencyKey } from './client';
 import type { Home, Invite, Item, ItemDetail, ItemInput, ItemStatus, Me, Member, Plan, Prefs, Scan, Category } from '../types';
 
@@ -60,7 +62,11 @@ export function useCreateItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: ItemInput) => api.post<ItemDetail>('/items', input),
-    onSuccess: () => invalidateItems(qc),
+    onSuccess: () => {
+      invalidateItems(qc);
+      coreActionCompleted('manual');
+      void noteDeadlineSaved();
+    },
   });
 }
 
@@ -138,6 +144,8 @@ export function useConfirmScan(id: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.scan(id) });
       invalidateItems(qc);
+      coreActionCompleted('scan');
+      void noteDeadlineSaved();
     },
   });
 }

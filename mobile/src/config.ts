@@ -73,3 +73,29 @@ export const EAS_PROJECT_ID = str(
 
 /** Bump when the privacy text changes materially (shown on the policy). */
 export const PRIVACY_EFFECTIVE = '2026-10-04';
+
+/**
+ * The one-time welcome offer after setup (app/offer.tsx): the same Pro as
+ * separately priced store products. Must match backend OFFER_*_ID byte for
+ * byte. OFFER_PERCENT is a LABEL for the copy, never used to compute a price;
+ * 0 turns the discount wording off.
+ */
+export const OFFER_IDS = {
+  monthly: str(process.env.EXPO_PUBLIC_OFFER_MONTHLY_ID, 'duebox_pro_monthly_offer'),
+  yearly: str(process.env.EXPO_PUBLIC_OFFER_YEARLY_ID, 'duebox_pro_yearly_offer'),
+} as const;
+export const OFFER_PERCENT = num(process.env.EXPO_PUBLIC_OFFER_PERCENT, 20);
+
+/**
+ * Meta ads measurement. Both empty means measurement is off (the shipped
+ * default): app.config.ts leaves the Meta SDK's native config out of the
+ * build, and every call in lib/analytics.ts returns without doing anything.
+ * It turns on only when both are set AND the build was made with them
+ * (native config is baked at prebuild), which expoConfig.extra records.
+ */
+export const META_APP_ID = str(process.env.EXPO_PUBLIC_META_APP_ID, '');
+export const META_CLIENT_TOKEN = str(process.env.EXPO_PUBLIC_META_CLIENT_TOKEN, '');
+export const META_ENABLED =
+  /^\d+$/.test(META_APP_ID) &&
+  META_CLIENT_TOKEN.length > 0 &&
+  (Constants.expoConfig?.extra as { metaEnabled?: boolean } | undefined)?.metaEnabled === true;

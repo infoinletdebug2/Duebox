@@ -57,15 +57,22 @@ const MEMBERS = [
   { id: 'm-2', displayName: 'Sam Rivera', initial: 'S', role: 'member', isMe: false, email: 'sam@example.com' },
 ];
 
-const PLAN_FREE = { tier: 'free', source: 'none', renewsAt: null, expiresAt: null, limits: { openItems: 5, scansPerMonth: 3, members: 1 }, usage: { openItems: 4, scansThisMonth: 2, month: TODAY.slice(0, 7) } };
-const PLAN_PRO = { tier: 'pro', source: 'store', renewsAt: iso(200), expiresAt: null, limits: { openItems: null, scansPerMonth: 100, members: 5 }, usage: { openItems: ITEMS.length, scansThisMonth: 9, month: TODAY.slice(0, 7) } };
-const PLAN = process.env.HARNESS_PLAN === 'free' ? PLAN_FREE : PLAN_PRO;
+const TRIAL = { isTrial: false, trialDays: 7, trialEndsAt: null, trialUsed: true };
+const PLAN_FREE = { ...TRIAL, tier: 'free', source: 'none', renewsAt: null, expiresAt: null, limits: { openItems: 5, scansPerMonth: 3, members: 1 }, usage: { openItems: 4, scansThisMonth: 2, month: TODAY.slice(0, 7) } };
+const PLAN_PRO = { ...TRIAL, tier: 'pro', source: 'store', renewsAt: iso(200), expiresAt: null, limits: { openItems: null, scansPerMonth: 100, members: 5 }, usage: { openItems: ITEMS.length, scansThisMonth: 9, month: TODAY.slice(0, 7) } };
+
+
+const PLAN_TRIAL = { ...PLAN_PRO, source: 'trial', isTrial: true, trialEndsAt: iso(7), renewsAt: null };
+/** Default: a household in its 7-day trial (what a new owner sees). HARNESS_PLAN=free|pro for the others. */
+const PLAN = process.env.HARNESS_PLAN === 'free' ? PLAN_FREE : process.env.HARNESS_PLAN === 'pro' ? PLAN_PRO : PLAN_TRIAL;
 
 const ME = {
   user: { id: 'u-demo', email: 'dana@example.com', name: 'Dana Rivera', emailVerified: true },
-  household: { id: 'h-1', name: 'The Riveras', timezone: 'America/Chicago', currency: 'USD', remindHour: 9 },
+  household: { id: 'h-1', name: 'The Riveras', timezone: 'America/Chicago', currency: 'USD', remindHour: 9, focus: ['insurance', 'vehicle'] },
   role: 'owner', memberId: 'm-1', prefs: { reminders: true, overdue: true }, plan: PLAN,
+  needsSetup: false, offerSeen: true,
 };
+
 
 const page = (id, i) => ({ id: `${id}-p${i}`, index: i, mime: 'image/jpeg', url: `https://picsum.photos/seed/${id}${i}/900/1200` });
 
@@ -103,6 +110,8 @@ function lookup(method, path, q) {
   if (method === 'PATCH' && m(/^\/items\/[^/]+$/)) return detail(ITEMS.find((i) => path.endsWith(i.id)) ?? ITEMS[0]);
   if (method === 'POST' && m(/^\/items\/[^/]+\/(snooze|reopen)$/)) return ITEMS.find((i) => path.includes(i.id)) ?? ITEMS[0];
   if (method === 'POST' && path === '/scans/s-1/confirm') return { items: [detail({ ...ITEMS[2], id: 'i-c1', title: 'School enrolment form' }), detail({ ...ITEMS[2], id: 'i-c2', title: 'Term fees' })] };
+  if (method === 'POST' && path === '/setup') return { ...ME, offerSeen: false, plan: PLAN_TRIAL, trialStarted: true };
+  if (method === 'PATCH' && path === '/auth/me') return { ...ME, offerSeen: true };
   if (method !== 'GET') return null;
   if (path === '/auth/me') return ME;
   if (path === '/auth/social/providers') return [{ provider: 'apple' }, { provider: 'google' }];
@@ -161,11 +170,19 @@ createServer(async (req, res) => {
   }
 }).listen(8080, () => console.log('web    http://localhost:8080'));
 
+const LAST = {};
 const stub = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   const path = url.pathname.replace(/^\/api\/v1/, '');
   const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type, x-timezone, x-region, idempotency-key', 'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS', 'content-type': 'application/json; charset=utf-8' };
   if (req.method === 'OPTIONS') return res.writeHead(204, cors).end();
+  // The flows read back what the app sent: GET /__last/<METHOD><path>.
+  if (path.startsWith('/__last/')) return res.writeHead(200, cors).end(JSON.stringify(LAST[path.slice(8)] ?? null));
+  if (req.method !== 'GET') {
+    let raw = '';
+    for await (const chunk of req) raw += chunk;
+    try { LAST[`${req.method}${path}`] = raw ? JSON.parse(raw) : null; } catch { LAST[`${req.method}${path}`] = raw; }
+  }
   const data = lookup(req.method, path, url.searchParams);
   if (data) return res.writeHead(200, cors).end(JSON.stringify({ success: true, data }));
   if (req.method !== 'GET') return res.writeHead(200, cors).end(JSON.stringify({ success: true, data: {} }));

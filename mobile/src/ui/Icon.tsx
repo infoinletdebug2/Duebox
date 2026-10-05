@@ -1,5 +1,8 @@
 import {
   AlarmClock,
+  Gift,
+  Heart,
+  MessageCircle,
   AlertTriangle,
   ArrowRight,
   BadgeCheck,
@@ -112,6 +115,9 @@ const ICONS = {
   user: User,
   'user-plus': UserPlus,
   users: Users,
+  gift: Gift,
+  heart: Heart,
+  message: MessageCircle,
   x: X,
 } satisfies Record<string, LucideIcon>;
 

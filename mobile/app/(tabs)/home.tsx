@@ -18,7 +18,6 @@ import { DueRow, NextUpHero, SectionHead, WeekRail, summarize } from '../../src/
 import { useDone } from '../../src/items/useDone';
 import { CATEGORY, money, plural } from '../../src/lib/format';
 import { localToday, longDate, weekdayName } from '../../src/lib/dates';
-import { loadDiscovery } from '../../src/onboarding/discovery';
 import { hasAskedForPush, permissionStatus, type PushPermission } from '../../src/notifications/push';
 import { noteFirstUse } from '../../src/lib/review';
 import type { Category, Item } from '../../src/types';
@@ -227,16 +226,13 @@ const useStyles = makeStyles((c) => ({
   limit: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: space.xs },
 }));
 
-/** FR-H5 — one drawing, one sentence, one action; suggestions from discovery. */
+/** FR-H5 — one drawing, one sentence, one action; suggestions from setup's "what slips through". */
 function EmptyHome() {
   const router = useRouter();
   const c = useColors();
-  const [picked, setPicked] = useState<Category[]>([]);
+  const { household } = useAuth();
+  const picked = household?.focus ?? [];
   const done = useItems('done', 'all', '');
-
-  useEffect(() => {
-    void loadDiscovery().then((d) => setPicked(d?.categories ?? []));
-  }, []);
 
   const everDone = (done.data?.items.length ?? 0) > 0;
   const suggestions = (picked.length > 0 ? picked : (['insurance', 'vehicle', 'subscriptions'] as Category[])).slice(0, 3);

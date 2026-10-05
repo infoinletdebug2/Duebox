@@ -6,12 +6,16 @@ import { hasOnboarded } from '../src/onboarding/discovery';
 import { useColors } from '../src/theme/tokens';
 
 /**
- * Which world to open: first launch → the discovery onboarding; no session →
- * welcome; signed in → Home. The household is created by the server on the
- * first /auth/me, so there is no setup step after sign-up (FR-A2).
+ * Which world to open:
+ *   a phone that has never seen Duebox → the discovery pitch;
+ *   no session → welcome;
+ *   signed in, setup not done (owner) → the two-tap setup;
+ *   setup done, welcome offer not seen yet → the one-time offer;
+ *   otherwise → Home.
+ * Email verification is offered right after sign-up and never blocks the app.
  */
 export default function Index() {
-  const { session } = useAuth();
+  const { session, needsSetup, needsOffer } = useAuth();
   const c = useColors();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
@@ -19,8 +23,12 @@ export default function Index() {
     void hasOnboarded().then(setOnboarded);
   }, []);
 
-  if (session) return <Redirect href="/(tabs)/home" />;
-  if (onboarded === null) return <View style={{ flex: 1, backgroundColor: c.ground }} />;
-  if (!onboarded) return <Redirect href="/onboarding" />;
+  if (session) {
+    if (needsSetup) return <Redirect href="/setup" />;
+    if (needsOffer) return <Redirect href="/offer" />;
+    return <Redirect href="/(tabs)/home" />;
+  }
+  if (onboarded === null) return <View style={{ flex: 1, backgroundColor: c.brand }} />;
+  if (!onboarded) return <Redirect href="/discover" />;
   return <Redirect href="/(auth)/welcome" />;
 }

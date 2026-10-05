@@ -15,7 +15,7 @@ import { Avatar } from '../../src/ui/Progress';
 import { ConfirmSheet } from '../../src/ui/Sheet';
 import { useTabBarSpace } from '../../src/ui/tabBar';
 import { hourLabel } from '../../src/lib/format';
-import { openStoreListing } from '../../src/lib/review';
+import { canOpenStoreListing, openStoreListing } from '../../src/lib/review';
 
 /**
  * SETTINGS (SCREENS #12, FR-X, store-readiness.md). The household card with
@@ -107,7 +107,7 @@ export default function Settings() {
       </Group>
 
       <Group title="About">
-        <ListRow icon="star" title="Rate Duebox" onPress={() => void openStoreListing()} />
+        {canOpenStoreListing() ? <ListRow icon="star" title="Rate Duebox" onPress={() => void openStoreListing()} /> : null}
         <ListRow icon="mail" title="Contact support" subtitle={SUPPORT_EMAIL} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Duebox%20support`).catch(() => undefined)} />
         <ListRow icon="shield" title="Privacy policy" onPress={() => router.push('/legal/privacy')} />
         <ListRow icon="file" title="Terms of service" onPress={() => router.push('/legal/terms')} />

@@ -4,11 +4,13 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../auth/context';
 import { availableProviders, SocialCancelled, type SocialProvider } from '../auth/social';
 import { messageOf } from '../api/client';
-import { radius, space } from '../theme/tokens';
+import { radius, space, useColors } from '../theme/tokens';
+import { AppleMark, GoogleMark } from './BrandMarks';
 import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Feedback';
 import { FormMessage } from './AuthShell';
 import { routeAfterAuth } from './pendingJoin';
+import { registrationCompleted } from '../lib/analytics';
 
 /**
  * Apple and Google (FR-A1). Which buttons exist is asked, not assumed:
@@ -34,6 +36,7 @@ export function SocialButtons({
   primaryFirst?: boolean;
 }) {
   const router = useRouter();
+  const c = useColors();
   const { signInWithProvider } = useAuth();
   const [providers, setProviders] = useState<SocialProvider[] | null>(null);
   const [busy, setBusy] = useState<SocialProvider | null>(null);
@@ -58,7 +61,9 @@ export function SocialButtons({
     setBusy(provider);
     onBusy?.(true);
     try {
-      await signInWithProvider(provider);
+      const me = await signInWithProvider(provider);
+      // A brand-new account lands with setup still to do.
+      if (me?.needsSetup) registrationCompleted(provider);
       await routeAfterAuth(router);
     } catch (failure) {
       if (!(failure instanceof SocialCancelled)) setError(messageOf(failure));
@@ -84,8 +89,11 @@ export function SocialButtons({
           key={p}
           testID={`social-${p}`}
           label={LABEL[p]}
-          // Apple's button follows Apple's HIG (black/white), never the mint accent.
-          tone={p === 'apple' ? 'ink' : primaryFirst && i === 0 ? 'primary' : 'secondary'}
+          // Each provider's button follows its own guidelines: Apple black/white
+          // with its logo in the text colour; Google with the four-colour G,
+          // never on marigold, where the G loses contrast.
+          tone={p === 'apple' ? 'ink' : primaryFirst && i === 0 && p !== 'google' ? 'primary' : 'secondary'}
+          leading={p === 'apple' ? <AppleMark color={c.scheme === 'dark' ? '#000000' : '#FFFFFF'} /> : <GoogleMark />}
           loading={busy === p}
           disabled={busy !== null && busy !== p}
           onPress={() => void go(p)}

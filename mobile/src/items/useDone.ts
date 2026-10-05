@@ -3,7 +3,7 @@ import { messageOf } from '../api/client';
 import { useMarkDone, useReopen } from '../api/hooks';
 import { useToast } from '../ui/Sheet';
 import { shortDate } from '../lib/dates';
-import { maybeAskForReview } from '../lib/review';
+import { noteDone } from '../lib/review';
 import type { Item } from '../types';
 
 /**
@@ -29,7 +29,7 @@ export function useDone() {
             actionLabel: 'Undo',
             onAction: () => reopen.mutate(item.id),
           });
-          void maybeAskForReview();
+          void noteDone();
         },
         onError: (e) => toast({ message: messageOf(e) }),
       });

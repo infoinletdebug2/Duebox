@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { paywallViewed } from '../src/lib/analytics';
 import { Linking, Platform, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -77,6 +78,7 @@ export default function Paywall() {
   }, []);
 
   useEffect(() => {
+    if (!isPro) paywallViewed(reason);
     void load();
     return () => {
       void disconnect();
