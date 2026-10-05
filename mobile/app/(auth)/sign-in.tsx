@@ -49,7 +49,8 @@ export default function SignIn() {
   return (
     <AuthShell
       title="Welcome back"
-      lead="Sign in to pick up where you left off."
+      lead="Your deadlines are where you left them."
+      hero={{ art: 'auth', eyebrow: 'Sign in' }}
       testID="screen-sign-in"
       below={<AuthLink lead="New here?" label="Create an account" onPress={() => router.replace('/(auth)/sign-up')} />}
     >

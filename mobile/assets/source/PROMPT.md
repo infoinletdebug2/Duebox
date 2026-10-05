@@ -28,3 +28,10 @@ Generated with the Codex CLI image tool, then resized to 828 px JPEG into
 | together | Two pairs of hands filing cards into one shared wooden tray |
 | gift | A paper gift box with a marigold ribbon, light and small cards rising out of it |
 | setup | A tidy wooden letter tray of colour-tabbed cards beside a brass alarm clock |
+
+## Hero banners (assets/hero, 2026-10-05)
+
+4:3 crops (828x621) of the discovery scenes above, used by `src/ui/HeroBanner.tsx`:
+auth ← scan · account ← read · export ← setup · delete ← problem · notify ← remind ·
+household ← together · subscription ← gift. Bespoke 4:3 scenes can replace any of
+them later with the same file name.

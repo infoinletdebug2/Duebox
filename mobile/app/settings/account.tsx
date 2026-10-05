@@ -5,6 +5,7 @@ import { useAuth } from '../../src/auth/context';
 import { api } from '../../src/api/client';
 import { space } from '../../src/theme/tokens';
 import { Screen, Header } from '../../src/ui/Screen';
+import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
 import { Field } from '../../src/ui/Controls';
@@ -108,7 +109,17 @@ export default function Account() {
   };
 
   return (
-    <Screen form header={<Header title="Account" />} testID="screen-account">
+    <Screen form header={<Header />} testID="screen-account">
+      <HeroBanner
+        art="account"
+        eyebrow="Account"
+        title={me.user.name ?? 'Your account'}
+        lead={me.user.email}
+        chips={[
+          { icon: me.user.emailVerified ? 'verified' : 'mail', label: me.user.emailVerified ? 'Email confirmed' : 'Email not confirmed yet' },
+          { icon: 'lock', label: 'Private to your household' },
+        ]}
+      />
       <View style={{ gap: space.md }}>
         <Field
           label="Your name"

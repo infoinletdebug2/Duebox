@@ -5,6 +5,7 @@ import { useAuth } from '../../src/auth/context';
 import { api } from '../../src/api/client';
 import { makeStyles, radius, space } from '../../src/theme/tokens';
 import { Screen, Header } from '../../src/ui/Screen';
+import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
 import { Field, Segmented } from '../../src/ui/Controls';
@@ -57,7 +58,7 @@ export default function DeleteAccount() {
   return (
     <Screen
       form
-      header={<Header title="Delete account" />}
+      header={<Header />}
       testID="screen-delete"
       footer={
         <View style={{ gap: space.sm }}>
@@ -66,10 +67,15 @@ export default function DeleteAccount() {
         </View>
       }
     >
+      <HeroBanner
+        art="delete"
+        tone="danger"
+        eyebrow="Delete account"
+        title="Delete your account"
+        lead="Read what goes before you confirm — it can’t be brought back."
+        chips={[{ icon: 'alert', label: 'Can’t be undone' }, { icon: 'download', label: 'Export first if you need it' }]}
+      />
       <View style={{ gap: space.sm }}>
-        <T variant="display" accessibilityRole="header">
-          Delete your account
-        </T>
         {household && isOwner ? (
           <T tone="muted">
             This deletes {household.name} for everyone in it, including any members you invited: every deadline and reminder, every scanned page, photo and PDF, and

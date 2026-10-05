@@ -6,6 +6,7 @@ import { useAuth } from '../../src/auth/context';
 import { API_URL, messageOf } from '../../src/api/client';
 import { space, useColors } from '../../src/theme/tokens';
 import { Screen, Header } from '../../src/ui/Screen';
+import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
 import { Icon, type IconName } from '../../src/ui/Icon';
@@ -67,13 +68,18 @@ export default function Export() {
   };
 
   return (
-    <Screen header={<Header title="Export" />} testID="screen-export">
-      <View style={{ gap: space.sm }}>
-        <T variant="display" accessibilityRole="header">
-          Export my data
-        </T>
-        <T tone="muted">Download everything in your household — anytime, whether or not you subscribe.</T>
-      </View>
+    <Screen header={<Header />} testID="screen-export">
+      <HeroBanner
+        art="export"
+        eyebrow="Your data, anytime"
+        title="Export my data"
+        lead="Everything in your household, as a file you keep — whether or not you subscribe."
+        chips={[
+          { icon: 'file', label: 'CSV for spreadsheets' },
+          { icon: 'download', label: 'JSON, everything' },
+          { icon: 'check', label: 'Always free' },
+        ]}
+      />
 
       <View style={{ gap: space.md }}>
         {WHAT.map((w) => (

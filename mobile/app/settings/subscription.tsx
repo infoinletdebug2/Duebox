@@ -4,6 +4,7 @@ import { useAuth } from '../../src/auth/context';
 import { ProgressBar } from '../../src/ui/Progress';
 import { space, useColors } from '../../src/theme/tokens';
 import { Screen, Header } from '../../src/ui/Screen';
+import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
 import { Card } from '../../src/ui/Layout';
@@ -30,14 +31,31 @@ export default function SubscriptionStatus() {
   const scanLimit = plan?.limits.scansPerMonth ?? 3;
 
   return (
-    <Screen header={<Header title="Subscription" />} testID="screen-subscription">
-      <View style={{ gap: space.xs }}>
-        <T variant="micro" tone="muted">
-          Your plan
-        </T>
-        <T variant="display">{isPro ? 'Duebox Pro' : 'Free'}</T>
-        {isPro && plan?.renewsAt ? <T tone="muted">Renews {new Date(plan.renewsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</T> : null}
-      </View>
+    <Screen header={<Header />} testID="screen-subscription">
+      <HeroBanner
+        art="subscription"
+        eyebrow="Your plan"
+        title={plan?.isTrial ? 'Duebox Pro · trial' : isPro ? 'Duebox Pro' : 'Free'}
+        lead={
+          plan?.isTrial && plan.trialEndsAt
+            ? `Everything unlocked until ${new Date(plan.trialEndsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}. Then Free, unless you subscribe.`
+            : isPro && plan?.renewsAt
+              ? `Renews ${new Date(plan.renewsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Thank you.`
+              : 'Five deadlines and three scans a month, free forever. Pro removes the limits.'
+        }
+        chips={
+          isPro
+            ? [
+                { icon: 'check', label: 'Unlimited deadlines' },
+                { icon: 'scan', label: `${scanLimit} scans a month` },
+                { icon: 'users', label: 'Household sharing' },
+              ]
+            : [
+                { icon: 'check', label: `${itemLimit ?? 5} deadlines` },
+                { icon: 'scan', label: `${scanLimit} scans a month` },
+              ]
+        }
+      />
 
       <Card style={{ gap: space.lg }}>
         <View style={{ gap: space.sm }}>

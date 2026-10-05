@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react';
 import { registrationCompleted } from '../../src/lib/analytics';
-import { type TextInput } from 'react-native';
+import { type TextInput, View } from 'react-native';
+import { space, useColors } from '../../src/theme/tokens';
+import { T } from '../../src/ui/Text';
+import { SocialButtons } from '../../src/account/SocialButtons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/context';
 import { Field } from '../../src/ui/Controls';
@@ -18,6 +21,8 @@ export default function SignUp() {
   const router = useRouter();
   const { register } = useAuth();
   const passwordRef = useRef<TextInput>(null);
+  const c = useColors();
+  const [hasSocial, setHasSocial] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
@@ -48,10 +53,29 @@ export default function SignUp() {
   return (
     <AuthShell
       title="Create your account"
-      lead="Free for your first 5 deadlines. No card needed."
+      lead="Snap a letter, and Duebox remembers the date for you."
+      hero={{
+        art: 'auth',
+        eyebrow: 'Free to start · no card',
+        chips: [
+          { icon: 'scan', label: 'AI reads the date' },
+          { icon: 'bell', label: 'Reminded before' },
+          { icon: 'sparkles', label: '7 days of Pro' },
+        ],
+      }}
       testID="screen-sign-up"
       below={<AuthLink lead="Already have an account?" label="Sign in" onPress={() => router.replace('/(auth)/sign-in')} />}
     >
+      <SocialButtons onLoaded={(list) => setHasSocial(list.length > 0)} />
+      {hasSocial ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+          <T variant="caption" tone="faint">
+            or with email
+          </T>
+          <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+        </View>
+      ) : null}
       <Field
         label="Email"
         value={email}

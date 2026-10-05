@@ -3,6 +3,7 @@ import { makeStyles, radius, space } from '../theme/tokens';
 import { Screen, Header } from '../ui/Screen';
 import { T } from '../ui/Text';
 import { Mark } from '../ui/artwork';
+import { HeroBanner, type HeroChip, type HeroName } from '../ui/HeroBanner';
 
 export { Mark };
 
@@ -31,6 +32,8 @@ interface AuthShellProps {
   lead?: string;
   /** Optional drawing between the brand and the title. */
   art?: React.ReactNode;
+  /** The discovery-style banner: generated art with the title on it (replaces `art`). */
+  hero?: { art: HeroName; eyebrow?: string; chips?: HeroChip[] };
   /** Show a back chevron (everything but welcome). */
   back?: boolean;
   onBack?: () => void;
@@ -41,20 +44,27 @@ interface AuthShellProps {
   testID?: string;
 }
 
-export function AuthShell({ title, lead, art, back = true, onBack, children, below, testID }: AuthShellProps) {
+export function AuthShell({ title, lead, art, hero, back = true, onBack, children, below, testID }: AuthShellProps) {
   const s = useStyles();
   return (
     <Screen form header={back ? <Header onBack={onBack} /> : undefined} testID={testID}>
-      <View style={s.top}>
-        <Brand />
-        {art ? <View style={s.art}>{art}</View> : null}
-        <View style={{ gap: space.sm }}>
-          <T variant="display" accessibilityRole="header">
-            {title}
-          </T>
-          {lead ? <T tone="muted">{lead}</T> : null}
+      {hero ? (
+        <View style={s.top}>
+          <Brand />
+          <HeroBanner art={hero.art} eyebrow={hero.eyebrow} title={title} lead={lead} chips={hero.chips} />
         </View>
-      </View>
+      ) : (
+        <View style={s.top}>
+          <Brand />
+          {art ? <View style={s.art}>{art}</View> : null}
+          <View style={{ gap: space.sm }}>
+            <T variant="display" accessibilityRole="header">
+              {title}
+            </T>
+            {lead ? <T tone="muted">{lead}</T> : null}
+          </View>
+        </View>
+      )}
       <View style={s.card}>{children}</View>
       {below ? <View style={s.below}>{below}</View> : null}
     </Screen>

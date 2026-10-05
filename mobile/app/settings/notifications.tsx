@@ -6,6 +6,8 @@ import { useUpdateMe } from '../../src/api/hooks';
 import { messageOf } from '../../src/api/client';
 import { space, useColors } from '../../src/theme/tokens';
 import { Screen, Header } from '../../src/ui/Screen';
+import { HeroBanner } from '../../src/ui/HeroBanner';
+import { hourLabel } from '../../src/lib/format';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
 import { Group, ListRow } from '../../src/ui/Layout';
@@ -25,7 +27,7 @@ const WEB_THUMB = { activeThumbColor: '#FFFFFF' } as object;
 export default function Notifications() {
   const c = useColors();
   const toast = useToast();
-  const { prefs, setPrefs } = useAuth();
+  const { prefs, setPrefs, household } = useAuth();
   const update = useUpdateMe();
   const [status, setStatus] = useState<PushPermission | null>(null);
 
@@ -56,7 +58,18 @@ export default function Notifications() {
   };
 
   return (
-    <Screen header={<Header title="Notifications" />} testID="screen-notifications">
+    <Screen header={<Header />} testID="screen-notifications">
+      <HeroBanner
+        art="notify"
+        eyebrow="Notifications"
+        title="Reminded before, not on the day"
+        lead={`Quiet nudges at ${hourLabel(household?.remindHour ?? 9)}, ${household?.timezone ?? 'your time'}. Done or Snooze right from the notification.`}
+        chips={[
+          { icon: 'calendar-clock', label: '30, 7 and 1 days ahead' },
+          { icon: 'bell', label: 'On the day' },
+          { icon: 'alarm', label: 'One overdue nudge' },
+        ]}
+      />
       {status === 'denied' || status === 'undetermined' ? (
         <View style={{ gap: space.sm }}>
           <Banner icon="bell-off" message="Notifications are off for Duebox on this phone, so reminders can’t reach you." />

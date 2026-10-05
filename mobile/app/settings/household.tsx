@@ -8,6 +8,7 @@ import { usePlanGate } from '../../src/billing/gate';
 import { font, makeStyles, radius, space, useColors } from '../../src/theme/tokens';
 import type { Invite, Member } from '../../src/types';
 import { Screen, Header } from '../../src/ui/Screen';
+import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button, IconButton, tap } from '../../src/ui/Button';
 import { Group, ListRow } from '../../src/ui/Layout';
@@ -70,10 +71,26 @@ export default function HouseholdScreen() {
   return (
     <Screen
       form
-      header={<Header title="Household" />}
+      header={<Header />}
       footer={isOwner ? <Button label="Invite someone" icon="user-plus" onPress={() => guard('household', () => setInviting(true))} testID="invite-open" /> : <LeaveButton />}
       testID="screen-household"
     >
+      <HeroBanner
+        art="household"
+        eyebrow="Household"
+        title={household?.name ?? 'Your household'}
+        lead={
+          members.data
+            ? members.data.length > 1
+              ? `${members.data.length} people share these deadlines. Assign who handles what.`
+              : 'Just you for now. Invite a partner to share the load.'
+            : 'Share deadlines and decide who handles what.'
+        }
+        chips={[
+          { icon: 'users', label: members.data ? `${members.data.length} of 5 people` : 'Up to 5 people' },
+          { icon: 'shield', label: 'Private to your household' },
+        ]}
+      />
       {isOwner ? (
         <HouseholdName current={household?.name ?? ''} onSaved={refresh} />
       ) : household ? (
