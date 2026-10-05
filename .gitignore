@@ -1,0 +1,16 @@
+node_modules/
+.dev.vars
+.env
+.wrangler/
+dist/
+dist-web/
+.expo/
+**/harness/shots/
+*.log
+**/harness/shots-dark/
+**/harness/.chrome-profile/
+.chrome/
+expo-env.d.ts
+**/harness/.chrome-discover/
+**/harness/.chrome-onboarding/
+**/harness/.chrome-*/

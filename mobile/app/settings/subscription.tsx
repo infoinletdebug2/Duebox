@@ -1,0 +1,76 @@
+import { Linking, Platform, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/auth/context';
+import { ProgressBar } from '../../src/ui/Progress';
+import { space, useColors } from '../../src/theme/tokens';
+import { Screen, Header } from '../../src/ui/Screen';
+import { T } from '../../src/ui/Text';
+import { Button } from '../../src/ui/Button';
+import { Card } from '../../src/ui/Layout';
+import { useToast } from '../../src/ui/Sheet';
+
+/**
+ * SUBSCRIPTION (SCREENS #17). Current plan and this month's usage; Manage in
+ * the store; Restore lives on the paywall. Lapsing never hides anything (BR-07).
+ */
+export default function SubscriptionStatus() {
+  const router = useRouter();
+  const toast = useToast();
+  const c = useColors();
+  const { plan, isPro, isOwner } = useAuth();
+
+  const manage = () => {
+    const url = Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions';
+    void Linking.openURL(url).catch(() => toast({ message: 'Open your store account’s Subscriptions page to manage Duebox.' }));
+  };
+
+  const items = plan?.usage.openItems ?? 0;
+  const itemLimit = plan?.limits.openItems ?? null;
+  const scans = plan?.usage.scansThisMonth ?? 0;
+  const scanLimit = plan?.limits.scansPerMonth ?? 3;
+
+  return (
+    <Screen header={<Header title="Subscription" />} testID="screen-subscription">
+      <View style={{ gap: space.xs }}>
+        <T variant="micro" tone="muted">
+          Your plan
+        </T>
+        <T variant="display">{isPro ? 'Duebox Pro' : 'Free'}</T>
+        {isPro && plan?.renewsAt ? <T tone="muted">Renews {new Date(plan.renewsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</T> : null}
+      </View>
+
+      <Card style={{ gap: space.lg }}>
+        <View style={{ gap: space.sm }}>
+          <View style={{ flexDirection: 'row' }}>
+            <T variant="headline" style={{ flex: 1 }}>
+              Open deadlines
+            </T>
+            <T tone="muted">{itemLimit === null ? `${items}, no limit` : `${items} of ${itemLimit}`}</T>
+          </View>
+          {itemLimit !== null ? <ProgressBar value={items / Math.max(1, itemLimit)} color={items >= itemLimit ? c.critical : c.brandInk} /> : null}
+        </View>
+        <View style={{ gap: space.sm }}>
+          <View style={{ flexDirection: 'row' }}>
+            <T variant="headline" style={{ flex: 1 }}>
+              Scans this month
+            </T>
+            <T tone="muted">
+              {scans} of {scanLimit}
+            </T>
+          </View>
+          <ProgressBar value={scans / Math.max(1, scanLimit)} color={scans >= scanLimit ? c.critical : c.brandInk} />
+        </View>
+      </Card>
+
+      {isPro ? (
+        <Button label="Manage in the store" tone="secondary" onPress={manage} />
+      ) : (
+        <Button label={isOwner ? 'See Duebox Pro' : 'Ask the owner about Pro'} onPress={() => router.push({ pathname: '/paywall', params: { reason: 'default' } })} testID="subscription-upgrade" />
+      )}
+      <Button label="Restore purchases" tone="quiet" onPress={() => router.push({ pathname: '/paywall', params: { reason: 'default' } })} />
+      <T variant="caption" tone="faint" align="center">
+        Done items never count toward the free limit. If Pro ends, nothing is hidden or deleted.
+      </T>
+    </Screen>
+  );
+}
