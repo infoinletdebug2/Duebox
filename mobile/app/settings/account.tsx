@@ -89,10 +89,17 @@ export default function Account() {
     setChanging(true);
     setPwError(null);
     try {
-      await api.post<{ changed: boolean }>('/auth/change-password', { currentPassword: current, newPassword: next });
+      const result = await api.post<{ changed: boolean; codeSent?: boolean; email?: string }>('/auth/change-password', { currentPassword: current, newPassword: next });
       setCurrent('');
       setNext('');
-      toast({ message: 'Password changed.' });
+      if (result.codeSent) {
+        // The current password checked out; the platform finishes the change
+        // with a code to their inbox. Same form as Forgot password.
+        toast({ message: 'Check your email for a code to finish.' });
+        router.push({ pathname: '/(auth)/reset-password', params: { email: result.email ?? me.user.email } });
+      } else {
+        toast({ message: 'Password changed.' });
+      }
     } catch (failure) {
       setPwError(failure);
     } finally {

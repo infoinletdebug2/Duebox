@@ -3,6 +3,17 @@
 What has and has not been verified, in writing (`playbook.md` → "Reporting
 status honestly"). Newest first.
 
+## 2026-10-05 (later) — every backend route covered; two password bugs found and fixed
+
+| Check | Result | Notes |
+|---|---|---|
+| Route coverage | ✅ **54/54 routes** called by `scripts/api-test.sh` | Added: send-code, forgot/reset password, change-password success, social start/complete/id-token, logout, restore, Apple/Google store webhooks, remove member, delete device |
+| curl suite on the production gateway | ✅ **213/213 checks** | Waits out the 10/min auth rate limit twice (~2 min longer) |
+| **Bug: change password** | Fixed | The gateway has no change-password route (404 on every path/method probed). Now: the current password is proven, then a reset code is emailed and the app opens the code screen to finish |
+| **Bug: forgot password** | Fixed | The gateway keys a reset by (email, code); the reset screen sent only the token, so no reset could ever complete. The screen now carries the email and lets you type the 6-digit code (or arrive by link) |
+| Harness after the fix | ✅ 28/28 light, 28/28 dark | |
+| Not provable here | ⛔ receiving the reset email and finishing a real reset (needs an inbox) | Try it on your phone with a real address |
+
 ## 2026-10-05 — backend built and tested live; first-run journey; Meta; reviews
 
 | Check | Result | Proves | Does NOT prove |

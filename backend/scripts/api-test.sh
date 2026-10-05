@@ -317,6 +317,66 @@ check 'd.data.role==="owner" && d.data.household.name!=="The Testers"' 'after le
 TOKEN="$OWNER_TOKEN"
 call GET "/items/$ITEM1" 200
 check 'd.data.assigneeId===null' 'their assignment cleared when they left'
+echo "remove a member, devices, store webhooks"
+TOKEN="$OWNER_TOKEN"
+call POST /household/invites 201
+CODE2="$(js 'd.data.code')"
+TOKEN="$PARTNER_TOKEN"
+call POST /household/join 200 "{\"code\":\"$CODE2\"}"
+TOKEN="$OWNER_TOKEN"
+call GET /household/members 200
+PM2="$(js 'd.data.find(m=>m.role==="member").id')"
+OWNER_MEMBER="$(js 'd.data.find(m=>m.role==="owner").id')"
+call DELETE "/household/members/$OWNER_MEMBER" 400
+check 'd.error.code==="VALIDATION_ERROR"' 'the owner cannot remove themself'
+call DELETE "/household/members/$PM2" 200
+call DELETE "/household/members/$PM2" 404
+TOKEN="$PARTNER_TOKEN"
+call GET /auth/me 200
+check 'd.data.role==="owner" && d.data.household.name!=="The Testers"' 'a removed member lands in a fresh household of their own'
+TOKEN="$OWNER_TOKEN"
+call DELETE "/devices/ExponentPushToken%5Bapi-test-$STAMP%5D" 200
+call POST /billing/restore 503 '{"originalTransactionId":"2000000000000001"}'
+check 'd.error.code==="STORE_UNCONFIGURED"' 'restore without store keys → 503, not a crash'
+TOKEN=""
+call POST /billing/apple/notifications 503 '{"signedPayload":"x.y.z"}'
+call POST /billing/google/notifications 503 '{"message":{"data":"e30="}}'
+
+echo "passwords, codes, social callbacks"
+# Auth routes allow 10 calls a minute per IP; the suite has used its share.
+echo "    (waiting 65 s for the auth rate limit window)"; sleep 65
+TOKEN="$OWNER_TOKEN"
+call POST /auth/send-code 200
+check 'd.data.sent===true' 'a new verification code can be sent'
+call POST /auth/change-password 200 "{\"currentPassword\":\"$PASSWORD\",\"newPassword\":\"$PASSWORD-2\"}"
+check '(d.data.changed===true) || (d.data.codeSent===true && d.data.email==="'"$OWNER_EMAIL"'")' "change password: $(js 'd.data.changed ? "changed directly" : "current password proven, code emailed to finish"')"
+TOKEN=""
+call POST /auth/forgot-password 200 "{\"email\":\"$OWNER_EMAIL\"}"
+check 'd.data.sent===true' 'reset code requested'
+call POST /auth/forgot-password 200 '{"email":"nobody-here@duebox.test"}'
+check 'd.data.sent===true' 'same answer for an unknown email (no account oracle)'
+call POST /auth/reset-password 400 "{\"email\":\"$OWNER_EMAIL\",\"password\":\"another-Password-9\"}"
+check 'd.error.fields.code==="REQUIRED"' 'reset without a code → asks for the code'
+call POST /auth/reset-password 400 '{"code":"123456","password":"another-Password-9"}'
+check 'd.error.fields.email==="INVALID_EMAIL"' 'reset without the email → asks for it (the platform needs both)'
+call POST /auth/reset-password 400 "{\"code\":\"000000\",\"email\":\"$OWNER_EMAIL\",\"password\":\"another-Password-9\"}"
+check 'd.error.code==="AUTH_INVALID_CODE"' 'a wrong reset code is refused with a readable message'
+echo "    (waiting 65 s for the auth rate limit window)"; sleep 65
+call GET '/auth/social/google/start?returnTo=duebox://auth' 200,412
+check '(d.success && /^https?:/.test(d.data.url)) || d.error' "Google sign-in start: $(js 'd.success ? "consent URL issued" : d.error.code')"
+call GET '/auth/social/apple/start?returnTo=https://evil.example' 200,412
+check '!d.success || !d.data.url.includes("evil.example")' 'a foreign returnTo is never passed through'
+call GET /auth/social/github/start 400
+call POST /auth/social/complete 400,401,404 '{"code":"bogus-code"}'
+check 'd.success===false' "a bogus sign-in code is refused ($(js 'd.error.code'))"
+call POST /auth/social/id-token 400 '{}'
+call POST /auth/social/id-token 400,401,412 '{"provider":"apple","idToken":"not.a.jwt"}'
+check 'd.success===false' "a forged Apple token is refused ($(js 'd.error.code'))"
+TOKEN="$OWNER_TOKEN"
+call POST /auth/logout 200
+TOKEN=""
+call POST /auth/login 200 "{\"email\":\"$OWNER_EMAIL\",\"password\":\"$PASSWORD\"}"
+OWNER_TOKEN="$(js 'd.data.accessToken')"; TOKEN="$OWNER_TOKEN"
 call DELETE /auth/me 200 "{\"password\":\"$PASSWORD\"}"
 OWNER_TOKEN=""
 call GET /auth/me 401

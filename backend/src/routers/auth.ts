@@ -345,13 +345,27 @@ export const authRouter = defineRouter({
       return ok(c, { sent: true, message: 'If that address has an account, a reset link is on its way.' });
     });
 
+    /**
+     * Finish a reset. The gateway keys a reset by (email, code) — the code
+     * alone cannot identify an account — so the email is required: from the
+     * reset link's query string, or carried over from the screen that asked.
+     */
     app.post('/auth/reset-password', strict, async (c) => {
       const body = await jsonBody(c);
-      const token = typeof body?.token === 'string' ? body.token : '';
+      const token = typeof body?.token === 'string' ? body.token.trim() : typeof body?.code === 'string' ? body.code.trim() : '';
+      const email = parseEmail(body?.email);
       const password = typeof body?.password === 'string' ? body.password : '';
-      if (!token) return invalid(c, 'That reset link is not valid.');
+      if (!token) return invalid(c, 'Enter the code from your email.', { code: 'REQUIRED' });
+      if (!email.ok) return invalid(c, 'Enter the email the code was sent to.', { email: 'INVALID_EMAIL' });
       if (password.length < 8) return invalid(c, 'Use at least 8 characters for your password.', { password: 'PASSWORD_TOO_SHORT' });
-      await sdk(c).auth.resetPassword({ token, newPassword: password });
+      try {
+        await sdk(c).auth.resetPassword({ token, newPassword: password, email: email.value });
+      } catch (failure) {
+        if (failure instanceof XenitionError && failure.code !== 'RATE_LIMITED') {
+          return fail(c, 'AUTH_INVALID_CODE', 'That code is not right, or it has expired. Ask for a new one.', 400, { code: 'INVALID' });
+        }
+        throw failure;
+      }
       return ok(c, { reset: true });
     });
 
@@ -367,8 +381,17 @@ export const authRouter = defineRouter({
       if (!(await passwordMatches(c, email, currentPassword))) {
         return fail(c, 'INVALID_PASSWORD', 'Your current password is not right.', 400, { currentPassword: 'INVALID' });
       }
-      await sdk(c).auth.changePassword({ currentPassword, newPassword }, bearer(c));
-      return ok(c, { changed: true });
+      try {
+        await sdk(c).auth.changePassword({ currentPassword, newPassword }, bearer(c));
+        return ok(c, { changed: true, codeSent: false });
+      } catch (failure) {
+        // The production gateway has no change-password route (404, observed
+        // 2026-10-05). The current password is already proven above, so finish
+        // through the reset path that does exist: a code to their own inbox.
+        if (!(failure instanceof XenitionError && (failure.status === 404 || failure.code === 'NOT_FOUND' || failure.code === 'NOT_IMPLEMENTED'))) throw failure;
+        await sdk(c).auth.requestPasswordReset(email, passwordResetUrl(env(c)));
+        return ok(c, { changed: false, codeSent: true, email });
+      }
     });
 
     /* ── the caller ─────────────────────────────────────────────────────── */

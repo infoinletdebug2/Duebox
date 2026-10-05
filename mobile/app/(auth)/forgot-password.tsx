@@ -10,8 +10,8 @@ import { formErrors, looksLikeEmail } from '../../src/account/forms';
 /**
  * FORGOT PASSWORD (SCREENS #2). One field. The server answers the same way
  * whether or not the address has an account (no existence oracle), so this
- * screen does too: "if that address has an account, a link is on its way".
- * The link opens `duebox://reset-password?token=…` → reset-password.
+ * screen does too. The email carries a code (and a link that opens
+ * reset-password with it); "Enter the code" goes there with the email.
  */
 export default function ForgotPassword() {
   const router = useRouter();
@@ -50,14 +50,15 @@ export default function ForgotPassword() {
         testID="screen-forgot-sent"
         below={<AuthLink label="Use a different email" onPress={() => setSent(null)} />}
       >
-        <T tone="muted">Open the link on this phone — it brings you straight back to Duebox to choose a new password. Links work once, so use the newest one.</T>
-        <Button label="Back to sign in" onPress={() => router.replace('/(auth)/sign-in')} testID="forgot-back" />
+        <T tone="muted">Open the link on this phone, or type the code here. Codes work once, so use the newest one.</T>
+        <Button label="Enter the code" onPress={() => router.push({ pathname: '/(auth)/reset-password', params: { email: email.trim().toLowerCase() } })} testID="forgot-enter-code" />
+        <Button label="Back to sign in" tone="quiet" onPress={() => router.replace('/(auth)/sign-in')} testID="forgot-back" />
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Reset your password" lead="Enter your email and we’ll send a link to choose a new one." testID="screen-forgot">
+    <AuthShell title="Reset your password" lead="Enter your email and we’ll send a code to choose a new one." testID="screen-forgot">
       <Field
         label="Email"
         value={email}
@@ -72,7 +73,7 @@ export default function ForgotPassword() {
         testID="forgot-email"
       />
       <FormMessage message={server.general} />
-      <Button label="Send reset link" onPress={() => void submit()} loading={pending} testID="forgot-submit" />
+      <Button label="Send reset code" onPress={() => void submit()} loading={pending} testID="forgot-submit" />
       <T variant="caption" tone="faint">
         Signed up with Apple or Google? You don’t have a Duebox password — use that button on the sign-in screen instead.
       </T>
