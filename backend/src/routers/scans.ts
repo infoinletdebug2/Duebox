@@ -16,6 +16,7 @@ import {
   today,
   transaction,
   uploadUrl,
+  uploaded,
 } from '../services';
 import { type DocumentRow, type ItemRow, type PageRow, int, instant, jsonOf } from '../rows';
 import { assertAssignee, defaultOffsets, insertItemStatement, pageKey, parseItemInput, parsePages, type ItemFields } from './items';
@@ -97,7 +98,11 @@ export const scansRouter = defineRouter({
       const pages = await ours(c, 'dx__page').where('document_id', d.id).orderBy('idx').rows<PageRow>();
       if (pages.length === 0) return fail(c, 'CONFLICT', 'This scan has no pages.', 409);
       const signed = await Promise.all(pages.map(async (p) => ({ url: await signedUrl(c, p.storage_key, 600), mime: p.mime as 'image/jpeg' | 'application/pdf' })));
-      if (signed.some((p) => !p.url)) return fail(c, 'CONFLICT', 'The upload has not finished. Try again in a moment.', 409);
+      // A signed URL is issued whether or not the object exists, so ask for one
+      // byte of each page: a missing upload is a 409 here, not a paid AI call,
+      // a scan counted against the month and a scan marked failed.
+      const present = await Promise.all(signed.map((p) => (p.url ? uploaded(p.url) : false)));
+      if (present.some((ok) => !ok)) return fail(c, 'CONFLICT', 'The upload has not finished. Try again in a moment.', 409);
 
       const householdId = me(c).householdId;
       await rawRows(c, `UPDATE dx__document SET status = 'reading', read_error = NULL, updated_at = now() WHERE id = $1::uuid AND household_id = $2::uuid`, [d.id, householdId]);

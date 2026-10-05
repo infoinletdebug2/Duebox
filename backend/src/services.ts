@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { snakeRows } from '@xenition/sdk';
-import { sdk, ours, me, env, scoped, userId } from './lib';
+import { sdk, ours, me, env, scoped, userId, readEnvVar } from './lib';
 import { docBucket, docUrlTtlSeconds } from './config';
 import { todayIn } from './logic/dates';
 import { planReminders } from './logic/planner';
@@ -64,13 +64,30 @@ export function bucket(c: Context): string {
   return docBucket(env(c));
 }
 
+/**
+ * A page URL. The gateway answers with a CDN address that caches for hours
+ * INCLUDING a 404: one look before the upload lands would make the page
+ * unreadable for that whole window. A one-off query parameter keeps every
+ * URL we hand out its own cache entry.
+ */
 export async function signedUrl(c: Context, key: string, ttl?: number): Promise<string | null> {
   try {
     const signed = await sdk(c).storage.createSignedUrl(key, ttl ?? docUrlTtlSeconds(env(c)), { bucket: bucket(c) });
-    return signed.url;
+    return signed.url + (signed.url.includes('?') ? '&' : '?') + 'v=' + crypto.randomUUID();
   } catch (error) {
     console.error('signed url failed:', error instanceof Error ? error.message : error);
     return null;
+  }
+}
+
+/** Whether a signed page URL points at an object that exists (one byte, never the page). */
+export async function uploaded(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { headers: { range: 'bytes=0-0' } });
+    await res.body?.cancel().catch(() => undefined);
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -80,18 +97,31 @@ export async function uploadUrl(c: Context, key: string, mime: string): Promise<
   return { url: signed.url, headers: signed.headers ?? { 'content-type': mime } };
 }
 
-/** Files after rows: an orphaned file is invisible; a row pointing at nothing is a broken screen. */
+/**
+ * Delete stored pages for real (item and account deletion, the privacy policy).
+ *
+ * NOT `sdk.storage.delete`: it percent-encodes the slashes in the key
+ * (`households%2F…`), the gateway does not decode them, and every delete
+ * comes back "file not found" while the file stays readable. The same call
+ * with literal slashes works, so it is made directly. A 404 means already gone.
+ * Files after rows: an orphaned file is invisible; a row pointing at nothing is a broken screen.
+ */
 export async function deleteStored(c: Context, keys: string[]): Promise<void> {
+  const base = (readEnvVar(c, 'XENITION_API_URL') ?? 'https://api.xenition.com/v1').replace(/\/$/, '');
+  const apiKey = readEnvVar(c, 'XENITION_API_KEY') ?? '';
   await Promise.all(
-    keys.filter(Boolean).map((key) =>
-      sdk(c)
-        .storage.delete(key, { bucket: bucket(c) })
-        .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error);
-          // A page that was never uploaded (a scan abandoned mid-way) is already gone.
-          if (!/not found/i.test(message)) console.error('storage delete failed:', message);
-        }),
-    ),
+    keys.filter(Boolean).map(async (key) => {
+      const path = key.split('/').map(encodeURIComponent).join('/');
+      try {
+        const res = await fetch(`${base}/app-platform/storage/${encodeURIComponent(bucket(c))}/${path}`, {
+          method: 'DELETE',
+          headers: { 'x-api-key': apiKey },
+        });
+        if (!res.ok && res.status !== 404) console.error('storage delete failed:', res.status, key);
+      } catch (error) {
+        console.error('storage delete failed:', error instanceof Error ? error.message : error, key);
+      }
+    }),
   );
 }
 

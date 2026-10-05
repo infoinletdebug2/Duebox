@@ -198,7 +198,12 @@ PUT_STATUS="$(curl -s -o /dev/null -w '%{http_code}' -X PUT "$UPLOAD" "${H[@]}" 
 if [[ "$PUT_STATUS" =~ ^2 ]]; then PASS=$((PASS + 1)); green "    ✓ PUT to storage $PUT_STATUS"; else FAIL=$((FAIL + 1)); red "    ✗ PUT to storage $PUT_STATUS"; fi
 call GET "/items/$ITEM4" 200
 check 'd.data.attachmentCount===1 && d.data.attachments[0].pages.length===1' 'attachment listed with a signed page URL'
+PAGE_URL="$(js 'd.data.attachments[0].pages[0].url')"
+BEFORE="$(curl -s -o /dev/null -w '%{http_code}' "$PAGE_URL")"
 call DELETE "/items/$ITEM4/attachments/$DOC" 200
+sleep 2
+AFTER="$(curl -s -o /dev/null -w '%{http_code}' "${PAGE_URL%%v=*}v=after-$STAMP")"
+if [ "$BEFORE" = "200" ] && [ "$AFTER" != "200" ]; then PASS=$((PASS + 1)); green "    ✓ the stored file is really deleted (page URL $BEFORE → $AFTER)"; else FAIL=$((FAIL + 1)); red "    ✗ stored file still readable after delete ($BEFORE → $AFTER)"; fi
 rm -f "$OUT.jpg"
 
 echo "scans"
@@ -220,6 +225,10 @@ if [ -n "${SAMPLE_LETTER:-}" ] && [ -f "$SAMPLE_LETTER" ]; then
 else
   echo "    (set SAMPLE_LETTER=/path/to/letter.jpg to exercise the AI read)"
 fi
+call POST "/scans/$SCAN/read" 409
+check 'd.error.code==="CONFLICT" && /upload has not finished/.test(d.error.message)' 'reading before the upload lands → 409, no AI call charged'
+call GET /billing/plan 200
+check 'd.data.usage.scansThisMonth===1' 'the early read did not count as a scan'
 call POST "/scans/$SCAN/confirm" 409 '{"items":[{"title":"x","dueDate":"2026-12-01"}]}'
 check 'd.error.code==="CONFLICT"' 'cannot confirm a scan that was never read'
 call DELETE "/scans/$SCAN" 200
