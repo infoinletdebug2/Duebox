@@ -24,7 +24,7 @@ offer → Home.
 
 - **Mobile:** Expo + React Native + Expo Router + React Query. **No Xenition package on the phone.**
 - **Backend:** Hono on Cloudflare Workers + `@xenition/sdk` (Postgres, auth, storage, billing).
-- **AI reading:** OpenRouter vision model, worker only. **Push:** Expo Push, worker only (cron every 5 min).
+- **AI reading:** through Xenition (`sdk.ai.chat`, no data retention). The OpenRouter key is the app's own AI key stored in Xenition — not in the worker, not on the phone. **Push:** Expo Push, worker only (cron every 5 min).
 - **Measurement:** Meta SDK + Conversions API, dormant until a Meta App ID is configured.
 
 ## Run it
@@ -33,7 +33,7 @@ offer → Home.
 # Backend
 cd backend
 npm install
-cp .dev.vars.example .dev.vars   # Xenition service key FOR DUEBOX + OPENROUTER_API_KEY
+cp .dev.vars.example .dev.vars   # the Xenition service key FOR DUEBOX (the AI key lives in Xenition)
 npm run migrate                  # once per deploy
 npm run dev                      # http://localhost:8787
 npm test                         # unit tests (planner, DST, repeats, extraction)

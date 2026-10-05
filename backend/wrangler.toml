@@ -13,13 +13,12 @@ APP_NAME = "Duebox"
 APP_SCHEME = "duebox"
 APPLE_BUNDLE_ID = "app.duebox.mobile"
 GOOGLE_PACKAGE_NAME = "app.duebox.mobile"
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 READER_MODEL = "google/gemini-2.5-flash"
 TRIAL_DAYS = "7"
 
 # Secrets — `wrangler secret put <NAME>`, never committed:
 #   XENITION_API_KEY        service key for THIS app
-#   OPENROUTER_API_KEY      the letter reader — worker only, never in the app
+#   (the AI key is the app's own OpenRouter key stored IN Xenition — scripts/ai-key.ts — not a worker secret)
 #   EXPO_ACCESS_TOKEN       Expo enhanced push security
 #   JOB_SECRET              to run the delivery job by hand
 #   APPLE_KEY_ID, APPLE_ISSUER_ID, APPLE_PRIVATE_KEY · GOOGLE_CLIENT_EMAIL, GOOGLE_PRIVATE_KEY

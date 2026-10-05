@@ -1,14 +1,21 @@
 import type { Context } from 'hono';
-import { env, readEnvVar, AppError } from './lib';
-import { openRouterBaseUrl, readerModel, readerTimeoutMs } from './config';
+import { XenitionError, type ChatContentPart } from '@xenition/sdk';
+import { env, sdk, AppError } from './lib';
+import { readerModel } from './config';
 import { EXTRACTION_SCHEMA, coerceExtraction, extractionInstructions, parseModelJson, type Candidate } from './logic/extract';
 
 /**
- * The document reader — the ONLY call to the AI provider (ARCHITECTURE §3.1).
+ * The document reader — the ONLY call to an AI model (ARCHITECTURE §3.1).
  *
- * Privacy (BR-10): `provider.data_collection = 'deny'` restricts OpenRouter
- * to providers that neither retain nor train on prompts. Nothing from the
- * document is logged — only model, page count, duration and an error class.
+ * It goes through the platform: `client.ai.chat` with the page images (or a
+ * PDF) as content parts. The OpenRouter key is the app's own AI key stored
+ * in Xenition (registered with `scripts/ai-key.ts`, or Manage → AI) — never
+ * in this worker and never on the phone.
+ *
+ * Privacy (BR-10): `noDataRetention` — the platform routes only to providers
+ * that neither retain nor train on prompts, and refuses any lane that cannot
+ * promise it. Nothing from the document is logged — only model, page count,
+ * duration and an error class.
  */
 
 export interface ReaderPage {
@@ -25,16 +32,14 @@ export class ReadFailed extends Error {
   }
 }
 
+/** Reading needs only the platform; whether an AI key is set up is the platform's answer (503 below). */
 export function readerConfigured(c: Context): boolean {
-  return Boolean(readEnvVar(c, 'OPENROUTER_API_KEY'));
+  return Boolean(env(c)('XENITION_API_KEY'));
 }
 
 export async function readDocument(c: Context, pages: ReaderPage[], today: string): Promise<{ candidates: Candidate[]; model: string; ms: number }> {
-  const key = readEnvVar(c, 'OPENROUTER_API_KEY');
-  if (!key) throw new AppError('READER_UNAVAILABLE', 'Reading letters is not set up on this server yet. You can type it in instead.', 503);
-
   const model = readerModel(env(c));
-  const content: unknown[] = [{ type: 'text', text: extractionInstructions(today) }];
+  const content: ChatContentPart[] = [{ type: 'text', text: extractionInstructions(today) }];
   pages.forEach((page, i) => {
     if (page.mime === 'application/pdf') {
       content.push({ type: 'file', file: { filename: `document-${i + 1}.pdf`, file_data: page.url } });
@@ -44,41 +49,29 @@ export async function readDocument(c: Context, pages: ReaderPage[], today: strin
   });
 
   const started = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), readerTimeoutMs(env(c)));
-  let response: Response;
+  let text: string;
   try {
-    response = await fetch(`${openRouterBaseUrl(env(c))}/chat/completions`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', 'x-title': 'Duebox' },
-      body: JSON.stringify({
-        model,
-        temperature: 0,
-        max_tokens: 2000,
-        provider: { data_collection: 'deny' },
-        response_format: { type: 'json_schema', json_schema: { name: 'deadlines', strict: true, schema: EXTRACTION_SCHEMA } },
-        messages: [{ role: 'user', content }],
-      }),
+    const reply = await sdk(c).ai.chat([{ role: 'user', content }], {
+      model,
+      provider: 'openrouter',
+      temperature: 0,
+      maxTokens: 2000,
+      noDataRetention: true,
+      responseFormat: { type: 'json_schema', name: 'deadlines', schema: EXTRACTION_SCHEMA as unknown as Record<string, unknown> },
     });
+    text = reply.message?.content ?? '';
   } catch (error) {
-    console.error('reader: request failed', { model, pages: pages.length, ms: Date.now() - started, kind: (error as Error)?.name });
-    throw new ReadFailed((error as Error)?.name === 'AbortError' ? 'timeout' : 'unreadable');
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!response.ok) {
-    console.error('reader: provider error', { model, status: response.status, ms: Date.now() - started });
-    if (response.status === 401 || response.status === 402 || response.status === 403) {
+    const status = error instanceof XenitionError ? error.status : undefined;
+    const code = error instanceof XenitionError ? error.code : (error as Error)?.name;
+    console.error('reader: request failed', { model, pages: pages.length, ms: Date.now() - started, code, status });
+    // No AI key on the app, a rejected key, or a lane that cannot keep the
+    // no-retention promise: reading is not set up — typing a deadline in still works.
+    if (status === 400 || status === 401 || status === 402 || status === 403 || status === 503) {
       throw new AppError('READER_UNAVAILABLE', 'Reading letters is not working on this server right now. You can type it in instead.', 503);
     }
-    throw new ReadFailed('unreadable');
+    throw new ReadFailed(code === 'TIMEOUT' || code === 'AbortError' || status === 504 ? 'timeout' : 'unreadable');
   }
 
-  const body = (await response.json().catch(() => null)) as { choices?: { message?: { content?: unknown } }[] } | null;
-  const raw = body?.choices?.[0]?.message?.content;
-  const text = typeof raw === 'string' ? raw : Array.isArray(raw) ? raw.map((p) => (p as { text?: string }).text ?? '').join('') : '';
   const json = parseModelJson(text);
   const ms = Date.now() - started;
   console.log('reader: done', { model, pages: pages.length, ms, parsed: Boolean(json) });

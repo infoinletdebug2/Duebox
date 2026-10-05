@@ -75,7 +75,7 @@ duebox/
 
 ### 3.1 The reader
 
-- Model: `google/gemini-2.5-flash` via OpenRouter, `temperature: 0`, `response_format: json_schema (strict)`, `provider.data_collection: 'deny'`, timeout 25 s.
+- Model: `google/gemini-2.5-flash` through Xenition's `ai.chat` (provider openrouter, the app's own key stored in Xenition, `noDataRetention`), `temperature: 0`, `response_format: json_schema (strict)`, `provider.data_collection: 'deny'`, timeout 25 s.
 - Instructions, in short: "Find every action with a deadline in this document (max 3). For each, return the exact words the date came from as `evidence`. If there is no explicit date, return `dueDate: null` — never guess. Mask any reference number to its last 4 characters. Choose category and action from the lists."
 - Schema (abridged):
 

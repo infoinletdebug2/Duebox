@@ -4,12 +4,9 @@
 XENITION_API_KEY=xen_service_...
 XENITION_API_URL=https://api.xenition.com/v1
 
-# the letter reader (required to read scans; typing a deadline in works without it)
-# Worker-only secret. Requests are sent with provider.data_collection = deny.
-OPENROUTER_API_KEY=
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+# the letter reader runs through Xenition's ai.chat. The OpenRouter key is the
+# app's own AI key stored IN Xenition: OPENROUTER_API_KEY=… npx tsx --env-file=.dev.vars scripts/ai-key.ts
 READER_MODEL=google/gemini-2.5-flash
-READER_TIMEOUT_MS=25000
 
 # push (Expo enhanced push security; optional in dev)
 EXPO_ACCESS_TOKEN=

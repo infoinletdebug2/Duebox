@@ -61,11 +61,9 @@ export const docUrlTtlSeconds = (read: EnvReader) => num(read, 'DOC_URL_TTL', 90
 export const maxImageBytes = (read: EnvReader) => num(read, 'MAX_IMAGE_BYTES', 4 * 1024 * 1024);
 export const maxPdfBytes = (read: EnvReader) => num(read, 'MAX_PDF_BYTES', 15 * 1024 * 1024);
 
-/* ── the reader (ARCHITECTURE §3.1) ──────────────────────────────────────── */
+/* ── the reader (ARCHITECTURE §3.1): through Xenition's ai.chat ──────────── */
 
-export const openRouterBaseUrl = (read: EnvReader) => str(read, 'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1').replace(/\/$/, '');
 export const readerModel = (read: EnvReader) => str(read, 'READER_MODEL', 'google/gemini-2.5-flash');
-export const readerTimeoutMs = (read: EnvReader) => num(read, 'READER_TIMEOUT_MS', 25_000);
 
 /* ── deep links ──────────────────────────────────────────────────────────── */
 
