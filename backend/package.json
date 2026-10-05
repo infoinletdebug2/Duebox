@@ -1,0 +1,28 @@
+{
+  "name": "duebox-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Duebox worker — items, scans, reminders and the plan, on @xenition/sdk.",
+  "scripts": {
+    "dev": "tsx --env-file=.dev.vars src/dev.ts",
+    "migrate": "tsx --env-file=.dev.vars src/migrate.ts",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:api": "bash scripts/api-test.sh"
+  },
+  "dependencies": {
+    "@xenition/sdk": "github:xenition/node-sdk#ff576331a38ae2bc2455bbc033569489ade587ec",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260820.1",
+    "@hono/node-server": "^1.13.7",
+    "@types/node": "^22.7.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.0.0"
+  }
+}

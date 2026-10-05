@@ -1,0 +1,52 @@
+# Duebox backend — copy to .dev.vars (gitignored). EXPO_PUBLIC_* goes in mobile/.env.
+
+# platform (required): a service key minted FOR THIS APP + the matching gateway
+XENITION_API_KEY=xen_service_...
+XENITION_API_URL=https://api.xenition.com/v1
+
+# the letter reader (required to read scans; typing a deadline in works without it)
+# Worker-only secret. Requests are sent with provider.data_collection = deny.
+OPENROUTER_API_KEY=
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+READER_MODEL=google/gemini-2.5-flash
+READER_TIMEOUT_MS=25000
+
+# push (Expo enhanced push security; optional in dev)
+EXPO_ACCESS_TOKEN=
+# lets you run the reminder job by hand: POST /api/v1/internal/jobs/deliver with x-job-secret
+JOB_SECRET=change-me
+
+PORT=8787
+APP_SCHEME=duebox
+PASSWORD_RESET_URL=duebox://reset-password
+SOCIAL_RETURN_URL=duebox://auth
+
+# the plan — must match mobile/.env EXPO_PUBLIC_PRO_*_ID
+PRO_ENTITLEMENT=pro
+PRO_MONTHLY_ID=duebox_pro_monthly
+PRO_YEARLY_ID=duebox_pro_yearly
+# one-time welcome offer after setup — same entitlement, discounted store products
+OFFER_MONTHLY_ID=duebox_pro_monthly_offer
+OFFER_YEARLY_ID=duebox_pro_yearly_offer
+TRIAL_DAYS=7
+FREE_OPEN_ITEMS=5
+FREE_SCANS=3
+PRO_SCANS=100
+MAX_MEMBERS=5
+
+# store verification (optional in dev)
+APPLE_KEY_ID=
+APPLE_ISSUER_ID=
+APPLE_PRIVATE_KEY=
+APPLE_BUNDLE_ID=app.duebox.mobile
+GOOGLE_PACKAGE_NAME=app.duebox.mobile
+GOOGLE_CLIENT_EMAIL=
+GOOGLE_PRIVATE_KEY=
+
+# Meta ads measurement (Conversions API). Dormant while empty.
+META_APP_ID=
+META_CAPI_ACCESS_TOKEN=
+META_VALUE_CURRENCY=USD
+
+DOC_BUCKET=default
+DOC_URL_TTL=900
