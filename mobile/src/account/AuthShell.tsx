@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
 import { font, makeStyles, radius, space, useColors } from '../theme/tokens';
 import { Screen, Header } from '../ui/Screen';
@@ -55,8 +55,10 @@ interface AuthShellProps {
 export function AuthShell({ title, lead, art, hero, back = true, onBack, children, below, testID }: AuthShellProps) {
   const s = useStyles();
   const c = useColors();
+  // On a short phone (SE-class, 640pt) the form must fit without scrolling: the title stays, the extras go.
+  const compact = useWindowDimensions().height < 700;
   return (
-    <Screen form header={back ? <Header onBack={onBack} /> : undefined} testID={testID}>
+    <Screen form header={back ? <Header onBack={onBack} /> : undefined} contentStyle={compact ? { gap: space.lg } : undefined} testID={testID}>
       {hero ? (
         <View style={s.heroTop}>
           <View style={s.titleRow}>
@@ -70,10 +72,16 @@ export function AuthShell({ title, lead, art, hero, back = true, onBack, childre
                 {title}
               </T>
             </View>
-            <Image source={HERO[hero.art]} style={s.tile} contentFit="cover" accessibilityElementsHidden importantForAccessibility="no" />
+            <Image
+              source={HERO[hero.art]}
+              style={[s.tile, compact && { width: 60, height: 60, borderRadius: radius.tile }]}
+              contentFit="cover"
+              accessibilityElementsHidden
+              importantForAccessibility="no"
+            />
           </View>
-          {lead ? <T tone="muted">{lead}</T> : null}
-          {hero.chips && hero.chips.length > 0 ? (
+          {lead && !compact ? <T tone="muted">{lead}</T> : null}
+          {hero.chips && hero.chips.length > 0 && !compact ? (
             <View style={s.chips}>
               {hero.chips.map((chip) => (
                 <View key={chip.label} style={s.chip}>
@@ -99,7 +107,7 @@ export function AuthShell({ title, lead, art, hero, back = true, onBack, childre
         </View>
       )}
       <FieldTone.Provider value="raised">
-        <View style={s.form}>{children}</View>
+        <View style={[s.form, compact && { gap: space.md }]}>{children}</View>
       </FieldTone.Provider>
       {below ? <View style={s.below}>{below}</View> : null}
     </Screen>

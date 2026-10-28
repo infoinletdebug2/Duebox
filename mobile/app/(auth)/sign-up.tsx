@@ -74,10 +74,10 @@ export default function SignUp() {
       <SocialButtons onBusy={setPending} onLoaded={(list) => setHasSocial(list.length > 0)} />
       {hasSocial ? <OrDivider /> : null}
       <Field
+        bare
         label="Your name"
         value={name}
         onChangeText={setName}
-        placeholder="Alex Rivera"
         autoCapitalize="words"
         autoComplete="name"
         textContentType="name"
@@ -89,10 +89,10 @@ export default function SignUp() {
       />
       <Field
         ref={emailRef}
+        bare
         label="Email"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@example.com"
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="email"
@@ -106,14 +106,15 @@ export default function SignUp() {
       />
       <PasswordField
         ref={passwordRef}
+        bare
         label="Password"
+        placeholder={`Password (${MIN_PASSWORD}+ characters)`}
         value={password}
         onChangeText={setPassword}
         autoComplete="new-password"
         textContentType="newPassword"
         returnKeyType="go"
         onSubmitEditing={() => void submit()}
-        hint={`At least ${MIN_PASSWORD} characters.`}
         error={local.password ?? server.fields.password}
         testID="sign-up-password"
       />

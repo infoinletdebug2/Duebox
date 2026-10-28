@@ -14,6 +14,8 @@ interface FieldProps extends TextInputProps {
   containerStyle?: StyleProp<ViewStyle>;
   /** Something inside the input's right edge (the password eye). */
   trailing?: React.ReactNode;
+  /** No label above: the placeholder names the field (short auth forms that must fit without scrolling). */
+  bare?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ interface FieldProps extends TextInputProps {
 export const FieldTone = createContext<'sunk' | 'raised'>('sunk');
 
 /** Label above, sunk input, error under (DESIGN-SYSTEM §6). */
-export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, error, hint, containerStyle, style, trailing, ...rest }, ref) {
+export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, error, hint, containerStyle, style, trailing, bare, ...rest }, ref) {
   const c = useColors();
   const s = useStyles();
   const tone = useContext(FieldTone);
@@ -36,6 +38,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, e
         selectionColor={c.brandInk}
         accessibilityLabel={label}
         maxFontSizeMultiplier={1.6}
+        placeholder={bare ? label : undefined}
         {...rest}
         onFocus={(e) => {
           setFocused(true);
@@ -50,9 +53,11 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, e
   );
   return (
     <View style={[{ gap: space.xs }, containerStyle]}>
-      <T variant="caption" tone="muted">
-        {label}
-      </T>
+      {bare ? null : (
+        <T variant="caption" tone="muted">
+          {label}
+        </T>
+      )}
       {trailing ? (
         <View style={s.inputRow}>
           {input}

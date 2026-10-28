@@ -60,10 +60,10 @@ export default function SignIn() {
       <SocialButtons onBusy={setPending} onLoaded={(list) => setHasSocial(list.length > 0)} />
       {hasSocial ? <OrDivider /> : null}
       <Field
+        bare
         label="Email"
         value={email}
         onChangeText={setEmail}
-        placeholder="you@example.com"
         autoCapitalize="none"
         autoCorrect={false}
         autoComplete="email"
@@ -78,6 +78,7 @@ export default function SignIn() {
       <View>
         <PasswordField
           ref={passwordRef}
+          bare
           label="Password"
           value={password}
           onChangeText={setPassword}
