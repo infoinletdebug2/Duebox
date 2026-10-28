@@ -146,7 +146,8 @@ interface Me {
 
 `POST /auth/register {email, password, name, timezone}` · `/auth/login` · `/auth/refresh` · `/auth/logout {refreshToken}` ·
 `/auth/send-code` · `/auth/verify-code` · `/auth/forgot-password` · `/auth/reset-password` · `/auth/change-password {currentPassword, newPassword}` ·
-`GET /auth/social/providers` · `GET /auth/social/:provider/start?returnTo` · `POST /auth/social/complete {code}` · `POST /auth/social/id-token {provider, idToken, nonce?, name?}`
+`GET /auth/social/providers` · `GET /auth/social/:provider/start` (returns to `duebox://auth` only) · `GET /auth/social/:provider/relay?app=<exp://…>` + `GET /auth/social/callback` (Expo Go: browser redirects, the code is handed back unredeemed) · `POST /auth/social/complete {code}` · `POST /auth/social/id-token {provider, idToken, nonce?, name?}`.
+Return addresses are an allowlist on the platform: `duebox://auth` and `https://duebox.xenition.com/api/v1/auth/social/callback` (`backend/scripts/return-urls.ts`). `POST /auth/register` also answers `codeSent`; `POST /auth/send-code` answers the real `sent`.
 
 Tokens: `{accessToken, refreshToken, expiresAt, user}`. The first `GET /auth/me` after sign-up creates the household (FR-A2) from the `x-timezone` and `x-region` headers the app sends on every request (CORS allows `x-timezone`, `x-region`, `idempotency-key` — `src/index.ts`). Sign-up asks only email + password; the name is derived from the address until the person sets one.
 

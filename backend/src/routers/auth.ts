@@ -21,7 +21,8 @@ import {
   optionalText,
   AppError,
 } from '../lib';
-import { passwordResetUrl, socialReturnUrl } from '../config';
+import { appScheme, passwordResetUrl, socialCallbackUrl, socialReturnUrl } from '../config';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { isValidZone } from '../logic/dates';
 import { planPayload } from '../billing';
 import { deleteStored, rawRows, transaction } from '../services';
@@ -157,6 +158,36 @@ function socialProvider(raw: string | undefined): SocialProvider | null {
   return SOCIAL_PROVIDERS.find((p) => p === raw) ?? null;
 }
 
+const RELAY_COOKIE = 'dx_social_app';
+
+/**
+ * Where the relay may hand a sign-in code: this app's own scheme, or Expo Go
+ * on a local network (or Expo's own u.expo.dev). Anything else is refused:
+ * `exp://somebody-elses-host/` would receive a code that opens the reader's
+ * account. Same rule as Ay-Rojgar's website relay.
+ */
+function appReturnOf(c: Context, raw: string | undefined): string | null {
+  if (!raw || raw.length > 300 || raw.includes('@')) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  const scheme = parsed.protocol.replace(/:$/, '').toLowerCase();
+  if (scheme === appScheme(env(c))) return raw;
+  if (scheme !== 'exp' && scheme !== 'exps') return null;
+  const host = parsed.hostname.toLowerCase();
+  const local =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === 'u.expo.dev' ||
+    /^10\.\d+\.\d+\.\d+$/.test(host) ||
+    /^192\.168\.\d+\.\d+$/.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(host);
+  return local ? raw : null;
+}
+
 /** Apple returns the name on the FIRST authorization only; use it now or lose it. */
 function socialName(auth: AuthResponse): string | null {
   const meta = (auth.user as { userMetadata?: Record<string, unknown> }).userMetadata;
@@ -283,18 +314,43 @@ export const authRouter = defineRouter({
     });
 
     /**
-     * Brokered browser lane: the consent URL. `returnTo` defaults to
-     * `duebox://auth`; Expo Go lives behind `exp://<lan-ip>/--/auth`, so a
-     * caller may name one — on this app's scheme or Expo's only.
+     * Brokered browser lane for an installed build: the consent URL, returning
+     * to `duebox://auth` — the only address it hands out. Expo Go's
+     * `exp://…/--/auth` goes through the relay below instead.
      */
     app.get('/auth/social/:provider/start', strict, async (c) => {
       const provider = socialProvider(c.req.param('provider'));
       if (!provider) return invalid(c, 'That sign-in provider is not supported here.');
-      const asked = c.req.query('returnTo') ?? '';
-      const scheme = socialReturnUrl(env(c)).split('://')[0];
-      const returnTo = asked && new RegExp(`^(${scheme}|exp|exps)://`).test(asked) && asked.length < 300 ? asked : socialReturnUrl(env(c));
-      const started = await sdk(c).auth.startSignIn(provider, returnTo);
+      const started = await sdk(c).auth.startSignIn(provider, socialReturnUrl(env(c)));
       return ok(c, { url: started.url, usingSSO: started.usingSSO ?? false });
+    });
+
+    /**
+     * The Expo Go relay (Ay-Rojgar's website does the same). The platform only
+     * returns to registered addresses, and an `exp://<lan-ip>/--/auth` address
+     * changes with every network, so it can never be one. The app opens this
+     * URL in its auth browser with `?app=<its exp:// address>`; the sign-in
+     * returns to the registered https callback below, which hands the one-time
+     * code back to the app WITHOUT redeeming it — the app redeems it itself.
+     */
+    app.get('/auth/social/:provider/relay', strict, async (c) => {
+      const provider = socialProvider(c.req.param('provider'));
+      const app = appReturnOf(c, c.req.query('app'));
+      if (!provider || !app) return c.text('This sign-in link is not valid. Go back to Duebox and try again.', 400);
+      setCookie(c, RELAY_COOKIE, app, { path: '/api/v1/auth/social', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 15 * 60 });
+      const started = await sdk(c).auth.startSignIn(provider, socialCallbackUrl(env(c)));
+      return c.redirect(started.url, 302);
+    });
+
+    app.get('/auth/social/callback', (c) => {
+      const app = appReturnOf(c, getCookie(c, RELAY_COOKIE));
+      deleteCookie(c, RELAY_COOKIE, { path: '/api/v1/auth/social', secure: true });
+      if (!app) return c.text('Sign-in finished. Go back to the Duebox app.', 200);
+      const code = c.req.query('code');
+      const back = new URL(app);
+      if (code) back.searchParams.set('code', code);
+      else back.searchParams.set('error', c.req.query('error') ?? 'failed');
+      return c.redirect(back.toString(), 302);
     });
 
     /** Redeem the one-time code the `duebox://auth` deep link carried. */

@@ -46,6 +46,25 @@ interface AuthValue {
 
 const AuthContext = createContext<AuthValue | null>(null);
 
+/**
+ * A brokered sign-in code is single-use, and two places may hold it at once:
+ * the screen that opened the browser (openAuthSessionAsync hands the URL
+ * back) and app/auth.tsx (Android and cold starts also deliver the same
+ * `…/auth?code=` as a deep link). Whoever asks first redeems it; the other
+ * gets the same answer instead of a "code already used" error screen.
+ */
+const redeeming = new Map<string, Promise<Me | null>>();
+
+function redeemOnce(code: string, adopt: (next: AuthResult) => Promise<Me | null>): Promise<Me | null> {
+  let pending = redeeming.get(code);
+  if (!pending) {
+    pending = api.anonymous.post<AuthResult>('/auth/social/complete', { code }).then(adopt);
+    redeeming.set(code, pending);
+    pending.catch(() => redeeming.delete(code));
+  }
+  return pending;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
@@ -163,15 +182,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (result.kind !== 'code') throw failure;
         }
       }
-      return adopt(await api.anonymous.post<AuthResult>('/auth/social/complete', { code: result.code }));
+      return redeemOnce(result.code, adopt);
     },
     [adopt],
   );
 
-  const completeSocialSignIn = useCallback(
-    async (code: string) => adopt(await api.anonymous.post<AuthResult>('/auth/social/complete', { code })),
-    [adopt],
-  );
+  const completeSocialSignIn = useCallback(async (code: string) => redeemOnce(code, adopt), [adopt]);
 
   const signOut = useCallback(async () => {
     // Told to the server, but a failure never keeps anyone signed in. The

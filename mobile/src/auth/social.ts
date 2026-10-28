@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { api } from '../api/client';
-import { IS_EXPO_GO } from '../config';
+import { API_URL, IS_EXPO_GO } from '../config';
 
 /**
  * Sign in with Apple and Google (SRS FR-A1).
@@ -107,11 +107,26 @@ export async function signInWithBrowser(provider: SocialProvider): Promise<Socia
   return brokered(provider);
 }
 
+/**
+ * Where the browser starts. An installed build asks the API for the consent
+ * URL, which returns to `duebox://auth`. Expo Go's `exp://…/--/auth` cannot be
+ * registered with the platform, so Expo Go starts at the worker's relay, which
+ * signs in through the registered https callback and hands the code back to
+ * this exact address (backend routers/auth.ts; Ay-Rojgar's website does the same).
+ */
+async function startUrl(provider: SocialProvider): Promise<string> {
+  const back = returnUrl();
+  if (back.startsWith('duebox://')) {
+    return (await api.anonymous.get<{ url: string }>(`/auth/social/${provider}/start`)).url;
+  }
+  return `${API_URL}/api/v1/auth/social/${provider}/relay?app=${encodeURIComponent(back)}`;
+}
+
 async function brokered(provider: SocialProvider): Promise<SocialResult> {
-  const started = await api.anonymous.get<{ url: string }>(`/auth/social/${provider}/start`, { returnTo: returnUrl() });
+  const start = await startUrl(provider);
   // openAuthSessionAsync (ASWebAuthenticationSession / Custom Tabs) is what
   // lets the system close the sheet on the redirect and hand the URL back.
-  const result = await WebBrowser.openAuthSessionAsync(started.url, returnUrl(), { preferEphemeralSession: true });
+  const result = await WebBrowser.openAuthSessionAsync(start, returnUrl(), { preferEphemeralSession: true });
   if (result.type !== 'success') throw new SocialCancelled();
 
   const params = Linking.parse(result.url).queryParams ?? {};

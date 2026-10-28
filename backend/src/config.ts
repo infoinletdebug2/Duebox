@@ -70,5 +70,13 @@ export const readerModel = (read: EnvReader) => str(read, 'READER_MODEL', 'googl
 export const appScheme = (read: EnvReader) => str(read, 'APP_SCHEME', 'duebox');
 export const passwordResetUrl = (read: EnvReader) => str(read, 'PASSWORD_RESET_URL', `${appScheme(read)}://reset-password`);
 export const socialReturnUrl = (read: EnvReader) => str(read, 'SOCIAL_RETURN_URL', `${appScheme(read)}://auth`);
+/** Where this worker is reached from outside (site + API on one host). */
+export const publicUrl = (read: EnvReader) => str(read, 'PUBLIC_URL', 'https://duebox.xenition.com').replace(/\/+$/, '');
+/**
+ * The relay's https return address (routers/auth.ts): Expo Go's exp:// address
+ * cannot be registered, so its sign-in comes back here first. Registered on the
+ * platform with `duebox://auth` by backend/scripts/return-urls.ts.
+ */
+export const socialCallbackUrl = (read: EnvReader) => `${publicUrl(read)}/api/v1/auth/social/callback`;
 export const inviteDays = (read: EnvReader) => num(read, 'INVITE_DAYS', 7);
 export const bundleId = (read: EnvReader) => str(read, 'APPLE_BUNDLE_ID', 'app.duebox.mobile');
