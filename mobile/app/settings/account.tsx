@@ -8,7 +8,7 @@ import { Screen, Header } from '../../src/ui/Screen';
 import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
-import { Field } from '../../src/ui/Controls';
+import { Field, PasswordField } from '../../src/ui/Controls';
 import { Group, ListRow } from '../../src/ui/Layout';
 import { ErrorState } from '../../src/ui/Feedback';
 import { ConfirmSheet, useToast } from '../../src/ui/Sheet';
@@ -150,11 +150,10 @@ export default function Account() {
         <T variant="caption" tone="muted">
           If you sign in with Apple or Google, you don’t have a Duebox password — there’s nothing to change here.
         </T>
-        <Field
+        <PasswordField
           label="Current password"
           value={current}
           onChangeText={setCurrent}
-          secureTextEntry
           autoComplete="current-password"
           textContentType="password"
           returnKeyType="next"
@@ -162,12 +161,11 @@ export default function Account() {
           error={pwLocal.current ?? pwErrors.fields.currentPassword}
           testID="account-current-password"
         />
-        <Field
+        <PasswordField
           ref={newRef}
           label="New password"
           value={next}
           onChangeText={setNext}
-          secureTextEntry
           autoComplete="new-password"
           textContentType="newPassword"
           returnKeyType="go"

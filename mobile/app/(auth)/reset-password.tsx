@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { type TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../src/api/client';
-import { Field } from '../../src/ui/Controls';
+import { Field, PasswordField } from '../../src/ui/Controls';
 import { Button } from '../../src/ui/Button';
 import { T } from '../../src/ui/Text';
 import { AuthShell, FormMessage } from '../../src/account/AuthShell';
@@ -109,12 +109,11 @@ export default function ResetPassword() {
         error={local.code ?? server.fields.code}
         testID="reset-code"
       />
-      <Field
+      <PasswordField
         ref={passwordRef}
         label="New password"
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
         autoComplete="new-password"
         textContentType="newPassword"
         returnKeyType="next"
@@ -122,12 +121,11 @@ export default function ResetPassword() {
         error={local.password ?? server.fields.password}
         testID="reset-password"
       />
-      <Field
+      <PasswordField
         ref={confirmRef}
         label="Type it again"
         value={confirm}
         onChangeText={setConfirm}
-        secureTextEntry
         autoComplete="new-password"
         textContentType="newPassword"
         returnKeyType="go"

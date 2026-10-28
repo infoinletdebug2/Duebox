@@ -8,7 +8,7 @@ import { Screen, Header } from '../../src/ui/Screen';
 import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
-import { Field, Segmented } from '../../src/ui/Controls';
+import { Field, Segmented, PasswordField } from '../../src/ui/Controls';
 import { useToast } from '../../src/ui/Sheet';
 import { FormMessage } from '../../src/account/AuthShell';
 import { formErrors } from '../../src/account/forms';
@@ -111,11 +111,10 @@ export default function DeleteAccount() {
           }}
         />
         {mode === 'password' ? (
-          <Field
+          <PasswordField
             label="Your password"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
             autoComplete="current-password"
             textContentType="password"
             returnKeyType="done"
