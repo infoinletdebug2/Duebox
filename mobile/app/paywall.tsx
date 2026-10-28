@@ -8,7 +8,7 @@ import { useAuth } from '../src/auth/context';
 import { messageOf } from '../src/api/client';
 import { invalidateItems } from '../src/api/hooks';
 import { disconnect, isAvailable, loadPlans, purchase, PurchaseCancelled, restore, type StorePlan } from '../src/billing/store';
-import { YEARLY_SAVING_PERCENT } from '../src/config';
+import { LIST_PRICE, PRODUCT_IDS, TRIAL_DAYS, YEARLY_SAVING_PERCENT } from '../src/config';
 import { font, GUTTER, makeStyles, radius, space, useColors } from '../src/theme/tokens';
 import { T } from '../src/ui/Text';
 import { Button, IconButton, Press, tap } from '../src/ui/Button';
@@ -233,7 +233,16 @@ export default function Paywall() {
               <Skeleton height={76} style={{ borderRadius: radius.group }} />
             </View>
           ) : store.kind === 'unavailable' ? (
-            <Banner icon="info" message="Subscriptions are available in the App Store and Google Play versions of Duebox — not in Expo Go or on the web." />
+            // No store here (Expo Go, web): show the planned plans greyed out so the layout can be seen. A real
+            // build never reaches this branch, and there the prices always come from the store, as billed.
+            <View style={{ gap: space.sm }} testID="paywall-preview">
+              <Banner icon="info" message="Preview only. Subscriptions work in the App Store and Google Play versions of Duebox — not in Expo Go or on the web." />
+              <View style={{ gap: space.sm, opacity: 0.55 }} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                {PREVIEW_PLANS.map((p) => (
+                  <PlanOption key={p.productId} plan={p} trialDays={p.trial?.days ?? null} selected={p.period === 'yearly'} onPress={() => undefined} />
+                ))}
+              </View>
+            </View>
           ) : store.kind === 'error' ? (
             <View style={{ gap: space.sm }}>
               <Banner icon="alert" message={store.message} />
@@ -293,6 +302,12 @@ export default function Paywall() {
     </View>
   );
 }
+
+/** The planned list prices (config), for the no-store preview only — never shown where a store can answer. */
+const PREVIEW_PLANS: StorePlan[] = [
+  { productId: PRODUCT_IDS.yearly, period: 'yearly', price: `$${LIST_PRICE.yearly.toFixed(2)}`, title: 'Yearly', amount: LIST_PRICE.yearly, currency: 'USD', trial: TRIAL_DAYS > 0 ? { days: TRIAL_DAYS } : null, offerToken: null },
+  { productId: PRODUCT_IDS.monthly, period: 'monthly', price: `$${LIST_PRICE.monthly.toFixed(2)}`, title: 'Monthly', amount: LIST_PRICE.monthly, currency: 'USD', trial: null, offerToken: null },
+];
 
 function PlanOption({ plan, trialDays, selected, onPress }: { plan: StorePlan; trialDays: number | null; selected: boolean; onPress: () => void }) {
   const c = useColors();
