@@ -43,7 +43,7 @@ export const EXTRACTION_SCHEMA = {
   additionalProperties: false,
   required: ['documentType', 'candidates'],
   properties: {
-    documentType: { type: 'string', enum: ['renewal_notice', 'bill', 'form', 'letter', 'receipt', 'screenshot', 'other'] },
+    documentType: { type: 'string', enum: ['renewal_notice', 'bill', 'form', 'letter', 'receipt', 'screenshot', 'card', 'label', 'other'] },
     candidates: {
       type: 'array',
       maxItems: 3,
@@ -77,11 +77,18 @@ export const EXTRACTION_SCHEMA = {
 
 export function extractionInstructions(today: string): string {
   return [
-    'You read a photo or PDF of a household document: a letter, bill, renewal notice, form, receipt or screenshot.',
+    'You read a photo or PDF of something a household has to keep track of: a letter, bill, renewal notice, form, receipt or screenshot,',
+    'or a card or label with an expiry date — a driver licence, ID card, passport, permit, insurance/membership/bank card, certificate, warranty, or a medicine or food label.',
+    'Photos may be taken of a screen, at an angle or with glare: read them anyway.',
     `Today is ${today}. Find every action the reader must take by a deadline — at most 3, most important first.`,
+    'An expiry date IS a deadline: the action is to renew or replace it (e.g. "Renew driver licence", "Replace bank card", "Use or throw out medicine").',
+    'Include it even if the date has already passed — the reader needs to act now.',
     'For each one:',
-    '- title: a short task in plain words, max 60 characters, e.g. "Car insurance renewal" or "Pay water bill". No account numbers.',
-    '- dueDate: the deadline as YYYY-MM-DD, ONLY if the document prints a date for it ("Due date", "Pay by", "Renew before", "Expires", "Return by", "Last day", "Payment due"). Never invent one: no printed date means null.',
+    '- title: a short task in plain words, max 60 characters, e.g. "Car insurance renewal", "Pay water bill" or "Renew driver licence". No account or ID numbers, no names.',
+    '- dueDate: the deadline as YYYY-MM-DD, ONLY if the document prints a date for it ("Due date", "Pay by", "Renew before", "Return by", "Last day", "Payment due",',
+    '  "Expires", "Exp", "EXP", "Expiry", "Expiration", "Valid until", "Valid thru", "Valid to", "Use by", "Best before"). Never invent one: no printed date means null.',
+    '  Never use a date of birth (DOB), an issue date ("Issued", "ISS"), a statement date or a printed-on date as the deadline.',
+    '  A month and year without a day (e.g. "EXP 03/27" or "Valid thru 03/2027") means the last day of that month; set dueDate confidence to "medium".',
     '  If the printed date has no year (e.g. "Due Oct 28" or "28/10"), use the next date on or after the statement/letter date (or today if there is none) — that is reading the date, not guessing.',
     '  Numeric dates: decide day/month order from the document (country, currency, other dates on it); if it is still ambiguous, pick the reading that is in the future and set dueDate confidence to "low".',
     '  A bill that says "due on receipt" or "due immediately" has no date: use null.',
@@ -93,7 +100,8 @@ export function extractionInstructions(today: string): string {
     '- notes: one short helpful line (what to bring, where to pay), or null.',
     '- category and action: choose from the allowed lists.',
     '- confidence: high when printed clearly, medium when inferred from layout, low when partly unreadable.',
-    'If the image is not a document, return documentType "other" and an empty candidates list.',
+    'documentType "card" is for licences, IDs, passports and cards; "label" for product or medicine packaging.',
+    'Only if the image has no readable document, card or label at all (a person, a room, a blank page) return documentType "other" and an empty candidates list.',
   ].join('\n');
 }
 
@@ -150,7 +158,9 @@ function pick<T extends string>(value: unknown, allowed: readonly T[], fallback:
 /**
  * The model's JSON → at most 3 usable candidates.
  *
- * - a date that does not exist, or is more than 10 years out or 2 years back, becomes null;
+ * - a date that does not exist, or is more than 10 years out or 10 years back, becomes null —
+ *   10 back, not less: an ID or licence that expired years ago is still a thing to renew now,
+ *   while a birth date (which the reader is told never to use) is almost always further back;
  * - a candidate with neither a title nor a date is dropped;
  * - references are re-masked even though the model was told to mask (BR-08).
  */
@@ -158,7 +168,7 @@ export function coerceExtraction(raw: unknown, today: string): Candidate[] {
   const list = (raw as { candidates?: unknown })?.candidates;
   if (!Array.isArray(list)) return [];
   const latest = addDays(today, 3653);
-  const earliest = addDays(today, -730);
+  const earliest = addDays(today, -3653);
   const out: Candidate[] = [];
   for (const item of list) {
     if (out.length >= 3) break;

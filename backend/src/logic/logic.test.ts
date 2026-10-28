@@ -161,7 +161,21 @@ describe('extraction', () => {
     expect(out[2]).toMatchObject({ title: 'Far future', dueDate: null });
   });
 
-  it('returns nothing for garbage', () => {
+  it('keeps an expiry that passed years ago (a licence to renew now), not a date from decades back', () => {
+    const out = coerceExtraction(
+      {
+        candidates: [
+          { title: 'Renew driver licence', category: 'id_travel', action: 'renew', dueDate: '2021-08-31', evidence: 'Expires 08/31/2021' },
+          { title: 'Birth date misread', category: 'other', action: 'other', dueDate: '1978-08-31', evidence: 'DOB 08/31/1978' },
+        ],
+      },
+      '2026-10-28',
+    );
+    expect(out[0]).toMatchObject({ title: 'Renew driver licence', dueDate: '2021-08-31', evidence: 'Expires 08/31/2021' });
+    expect(out[1]).toMatchObject({ title: 'Birth date misread', dueDate: null });
+  });
+
+    it('returns nothing for garbage', () => {
     expect(coerceExtraction(null, '2026-10-05')).toEqual([]);
     expect(coerceExtraction({ candidates: 'x' }, '2026-10-05')).toEqual([]);
   });
