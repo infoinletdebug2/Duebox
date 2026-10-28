@@ -123,7 +123,10 @@ export default function Discover() {
     // The tracking question comes after the person has seen what the app does,
     // never on a cold first frame (App Review 5.1.1). A no-op until Meta is configured.
     await requestTracking();
-    router.replace(to);
+    // Reopened from Welcome ("See how it works"): finishing goes back to it
+    // instead of stacking a second Welcome on top.
+    if (to === '/(auth)/welcome' && router.canGoBack()) router.back();
+    else router.replace(to);
   };
 
   const next = () => {

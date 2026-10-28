@@ -46,6 +46,7 @@ export default function Welcome() {
       </View>
 
       <AuthLink lead="Already using Duebox?" label="I have an account" onPress={() => router.push('/(auth)/sign-in')} testID="welcome-sign-in" />
+      <AuthLink lead="Not sure yet?" label="See how it works" onPress={() => router.push('/discover')} testID="welcome-discover" />
 
       <T variant="caption" tone="faint" align="center">
         By continuing you agree to the{' '}
