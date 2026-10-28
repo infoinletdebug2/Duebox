@@ -42,4 +42,4 @@ Workers secrets: `XENITION_API_KEY`, `EXPO_ACCESS_TOKEN`,
 - `backend/scripts/api-test.sh` — the curl suite; `scripts/sql.ts` — a one-statement helper the suite uses to bend time.
 - `mobile/app/discover.tsx`, `setup.tsx`, `offer.tsx` — the first-run journey.
 - `mobile/src/lib/analytics.ts` — the only measurement entry point; `src/lib/review.ts` + `src/ui/ReviewPrompt.tsx` — ratings.
-- `mobile/assets/discover/{setup,gift}.jpg` — artwork for setup and offer (discovery draws its slides in code) (prompts: `mobile/assets/source/PROMPT.md`).
+- `mobile/assets/discover/*.jpg` — artwork (prompts: `mobile/assets/source/PROMPT.md`); discovery animates real-app cards over it (prompts: `mobile/assets/source/PROMPT.md`).
