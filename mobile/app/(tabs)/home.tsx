@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useHome, useItems } from '../../src/api/hooks';
 import { useAuth } from '../../src/auth/context';
@@ -14,7 +15,7 @@ import { Banner, ErrorState, ListSkeleton, Skeleton } from '../../src/ui/Feedbac
 import { Sheet } from '../../src/ui/Sheet';
 import { AllDone, EmptyTray } from '../../src/ui/artwork';
 import { useFabSpace } from '../../src/ui/tabBar';
-import { DueRow, NextUpHero, SectionHead, WeekRail, summarize } from '../../src/items/parts';
+import { DueRow, NextUpHero, ROW_EXIT, ROW_LAYOUT, SectionHead, WeekRail, summarize } from '../../src/items/parts';
 import { PlanCard } from '../../src/billing/PlanCard';
 import { useDone } from '../../src/items/useDone';
 import { CATEGORY, money, plural } from '../../src/lib/format';
@@ -143,7 +144,12 @@ export default function Home() {
         </>
       ) : (
         <>
-          {data.nextUp ? <NextUpHero item={data.nextUp} onDone={() => markDone(data.nextUp as Item)} busy={pending === data.nextUp.id} /> : null}
+          {/* Done with Next up: it fades and the next one fades in, keyed by item, so the change reads as "next", not a flicker. */}
+          {data.nextUp ? (
+            <Animated.View key={data.nextUp.id} entering={FadeIn.duration(260)} exiting={FadeOut.duration(160)} layout={ROW_LAYOUT}>
+              <NextUpHero item={data.nextUp} onDone={() => markDone(data.nextUp as Item)} busy={pending === data.nextUp.id} />
+            </Animated.View>
+          ) : null}
 
           {/* What needs you, after the one thing due next: a scan to check, reminders that are off, the plan. */}
           {inboxRow}
@@ -155,36 +161,36 @@ export default function Home() {
           <PlanCard />
 
           {overdue.length > 0 ? (
-            <View>
+            <Animated.View exiting={ROW_EXIT} layout={ROW_LAYOUT}>
               <SectionHead title="Overdue" count={overdue.length} tone="late" />
               <Group>
                 {overdue.map((i) => (
                   <DueRow key={i.id} item={i} members={data.members} onDone={markDone} />
                 ))}
               </Group>
-            </View>
+            </Animated.View>
           ) : null}
 
           {thisWeek.length > 0 ? (
-            <View>
+            <Animated.View exiting={ROW_EXIT} layout={ROW_LAYOUT}>
               <SectionHead title="This week" count={thisWeek.length} />
               <Group>
                 {thisWeek.map((i) => (
                   <DueRow key={i.id} item={i} members={data.members} onDone={markDone} />
                 ))}
               </Group>
-            </View>
+            </Animated.View>
           ) : null}
 
           {thisMonth.length > 0 ? (
-            <View>
+            <Animated.View exiting={ROW_EXIT} layout={ROW_LAYOUT}>
               <SectionHead title="Later this month" count={thisMonth.length} />
               <Group>
                 {thisMonth.map((i) => (
                   <DueRow key={i.id} item={i} members={data.members} onDone={markDone} />
                 ))}
               </Group>
-            </View>
+            </Animated.View>
           ) : null}
 
           {data.laterCount > 0 ? (

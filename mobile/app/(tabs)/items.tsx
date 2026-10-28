@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { TextInput, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useHome, useItems } from '../../src/api/hooks';
 import { font, makeStyles, radius, space, useColors } from '../../src/theme/tokens';
@@ -10,7 +11,7 @@ import { EmptyState, ErrorState, ListSkeleton } from '../../src/ui/Feedback';
 import { Icon } from '../../src/ui/Icon';
 import { EmptyTray } from '../../src/ui/artwork';
 import { useFabSpace } from '../../src/ui/tabBar';
-import { DueRow, SectionHead } from '../../src/items/parts';
+import { DueRow, ROW_EXIT, ROW_LAYOUT, SectionHead } from '../../src/items/parts';
 import { useDone } from '../../src/items/useDone';
 import { CATEGORIES, CATEGORY } from '../../src/lib/format';
 import { monthYear } from '../../src/lib/dates';
@@ -102,14 +103,14 @@ export default function Items() {
         )
       ) : (
         groups.map((g) => (
-          <View key={g.month}>
+          <Animated.View key={g.month} exiting={ROW_EXIT} layout={ROW_LAYOUT}>
             <SectionHead title={monthYear(g.month)} count={g.items.length} />
             <Group>
               {g.items.map((i) => (
                 <DueRow key={i.id} item={i} members={home.data?.members} onDone={markDone} />
               ))}
             </Group>
-          </View>
+          </Animated.View>
         ))
       )}
     </Screen>

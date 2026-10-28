@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { font, makeStyles, motion, radius, shadow, space, useColors, type Colors } from '../theme/tokens';
@@ -154,7 +154,16 @@ export function DoneCircle({ done, onPress, label }: { done: boolean; onPress: (
 /**
  * DueRow: date tile · title (+ amount on the right) · one sentence that says
  * when and what — "In 6 days, renew with State Farm" — · the done circle.
+ *
+ * Motion (state change): when a row leaves its list — marked done, snoozed
+ * past the section — it fades out and the rows under it slide up into its
+ * place, instead of everything jumping in one frame. Rows never animate in:
+ * data you're reading doesn't move for style. Lists here are plain maps, not
+ * recycled, so layout animations are safe. Reduce Motion: Reanimated skips them.
  */
+export const ROW_EXIT = FadeOut.duration(180);
+export const ROW_LAYOUT = LinearTransition.duration(240).easing(Easing.bezier(0.23, 1, 0.32, 1));
+
 export function DueRow({ item, members, onDone, testID }: { item: Item; members?: Member[]; onDone?: (item: Item) => void; testID?: string }) {
   const c = useColors();
   const s = useStyles();
@@ -167,7 +176,7 @@ export function DueRow({ item, members, onDone, testID }: { item: Item; members?
   const when = done ? 'Done' : countdown(item.daysLeft).replace(/^in /, 'In ');
 
   return (
-    <View style={s.row} testID={testID}>
+    <Animated.View exiting={ROW_EXIT} layout={ROW_LAYOUT} style={s.row} testID={testID}>
       <Press
         style={s.rowMain}
         onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
@@ -198,7 +207,7 @@ export function DueRow({ item, members, onDone, testID }: { item: Item; members?
         </View>
       </Press>
       {onDone ? <DoneCircle done={done} onPress={() => onDone(item)} label={`Mark ${item.title} done`} /> : null}
-    </View>
+    </Animated.View>
   );
 }
 

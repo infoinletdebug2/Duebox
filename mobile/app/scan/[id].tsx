@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { FadeInDown, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useAuth } from '../../src/auth/context';
 import { useConfirmScan, useDiscardScan, useHome, useReadScan, useScan } from '../../src/api/hooks';
 import { usePlanGate } from '../../src/billing/gate';
@@ -83,6 +83,9 @@ export default function ScanResult() {
 
 /* ── reading ────────────────────────────────────────────────────────────── */
 
+const THUMB_W = 96;
+const THUMB_H = Math.round(THUMB_W * 1.3);
+
 function Reading({ scan }: { scan: Scan | undefined }) {
   const router = useRouter();
   const c = useColors();
@@ -97,6 +100,17 @@ function Reading({ scan }: { scan: Scan | undefined }) {
 
   const bar = useAnimatedStyle(() => ({ left: `${x.value * 60}%` }));
 
+  // A marigold line sweeps down each page while it is read — the scan, made visible.
+  const sweep = useSharedValue(0);
+  useEffect(() => {
+    if (reduce) return;
+    sweep.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }), -1, false);
+  }, [reduce, sweep]);
+  const line = useAnimatedStyle(() => ({
+    opacity: sweep.value < 0.08 ? sweep.value / 0.08 : sweep.value > 0.9 ? (1 - sweep.value) / 0.1 : 1,
+    transform: [{ translateY: sweep.value * (THUMB_H - 4) }],
+  }));
+
   return (
     <Screen header={<Header title="Reading" closeIcon onBack={() => router.replace('/')} />} testID="screen-reading">
       <View style={{ gap: space.sm }}>
@@ -110,14 +124,27 @@ function Reading({ scan }: { scan: Scan | undefined }) {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.md }}>
         {scan
-          ? scan.pages.map((p, i) => <PageThumb key={p.id} uri={p.url} mime={p.mime} index={i} width={96} />)
-          : [0, 1].map((i) => <Skeleton key={i} width={96} height={125} style={{ borderRadius: radius.input }} />)}
+          ? scan.pages.map((p, i) => (
+              <View key={p.id}>
+                <PageThumb uri={p.url} mime={p.mime} index={i} width={THUMB_W} />
+                {reduce ? null : (
+                  <View pointerEvents="none" style={[s.sweepClip, { width: THUMB_W, height: THUMB_H }]}>
+                    <Animated.View style={[s.sweepLine, line]} />
+                  </View>
+                )}
+              </View>
+            ))
+          : [0, 1].map((i) => <Skeleton key={i} width={THUMB_W} height={THUMB_H} style={{ borderRadius: radius.input }} />)}
       </ScrollView>
       <View style={{ gap: space.sm }}>
-        {['Finding the deadline', 'Picking out the amount and who it’s from', 'Hiding reference numbers except the last 4'].map((line) => (
-          <T key={line} variant="callout" tone="muted">
-            · {line}
-          </T>
+        {/* What reading does, told one line at a time (explanation, not progress: there's no fake percentage). */}
+        {['Finding the deadline', 'Picking out the amount and who it’s from', 'Hiding reference numbers except the last 4'].map((step, i) => (
+          <Animated.View key={step} entering={reduce ? undefined : FadeInDown.delay(300 + i * 450).duration(320)} style={s.step}>
+            <View style={[s.stepDot, { backgroundColor: c.accent }]} />
+            <T variant="callout" tone="muted">
+              {step}
+            </T>
+          </Animated.View>
         ))}
       </View>
     </Screen>
@@ -290,6 +317,10 @@ function Confirm({ scan }: { scan: Scan }) {
 
 const useStyles = makeStyles((c) => ({
   track: { height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' },
+  sweepClip: { position: 'absolute', top: 0, left: 0, borderRadius: radius.input - 4, overflow: 'hidden' },
+  sweepLine: { height: 4, marginHorizontal: 4, borderRadius: 2, backgroundColor: '#F2B33D', boxShadow: '0px 0px 10px rgba(242, 179, 61, 0.9)' },
+  step: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  stepDot: { width: 6, height: 6, borderRadius: 3 },
   bar: { position: 'absolute', top: 0, bottom: 0, width: '40%', borderRadius: 2 },
   card: {
     backgroundColor: c.surface,
