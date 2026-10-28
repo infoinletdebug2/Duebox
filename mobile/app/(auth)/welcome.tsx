@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { makeStyles, radius, space } from '../../src/theme/tokens';
+import { makeStyles, space } from '../../src/theme/tokens';
 import { Screen } from '../../src/ui/Screen';
 import { T } from '../../src/ui/Text';
 import { Button } from '../../src/ui/Button';
@@ -12,20 +12,24 @@ import { SocialButtons } from '../../src/account/SocialButtons';
 /**
  * WELCOME (SCREENS #1, FR-A1). Mark, the tray, one sentence, then the ways
  * in. Apple first where it exists; otherwise email is the primary. Scrolls,
- * so a large type size on a small phone still reaches every button.
+ * so a large type size on a small phone still reaches every button — but at
+ * the default size every way in, "I have an account" included, fits on a
+ * 640pt phone: the tray shrinks there instead of pushing the links off.
  */
 export default function Welcome() {
   const router = useRouter();
   const s = useStyles();
   const [hasSocial, setHasSocial] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { height } = useWindowDimensions();
+  const compact = height < 700;
 
   return (
-    <Screen testID="screen-welcome" contentStyle={s.content}>
+    <Screen testID="screen-welcome" contentStyle={[s.content, compact && { gap: space.lg }]}>
       <Brand />
       <View style={s.hero}>
-        <TrayHero size={230} />
-        <T variant="display" align="center" accessibilityRole="header" style={s.line}>
+        <TrayHero size={compact ? 140 : 210} />
+        <T variant="display" align="center" accessibilityRole="header" style={[s.line, compact && { fontSize: 26, lineHeight: 31 }]}>
           Snap the letter. We’ll remember the date.
         </T>
         <T tone="muted" align="center" style={s.lead}>
@@ -33,7 +37,7 @@ export default function Welcome() {
         </T>
       </View>
 
-      <View style={s.card}>
+      <View style={s.ways}>
         <SocialButtons primaryFirst onLoaded={(list) => setHasSocial(list.length > 0)} onBusy={setBusy} />
         <Button
           testID="welcome-email"
@@ -63,19 +67,13 @@ export default function Welcome() {
   );
 }
 
-const useStyles = makeStyles((c) => ({
+const useStyles = makeStyles(() => ({
   // No paddingTop here: Screen owns the safe-area inset and a later style would replace it.
   content: { gap: space.xl },
   hero: { alignItems: 'center', gap: space.md, paddingTop: space.sm },
   line: { maxWidth: 340 },
   lead: { maxWidth: 340 },
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: c.line,
-    padding: space.lg,
-    gap: space.sm,
-  },
+  // The buttons straight on the page, like sign-in and sign-up — no card around them.
+  ways: { gap: space.sm },
   link: { textDecorationLine: 'underline' },
 }));
