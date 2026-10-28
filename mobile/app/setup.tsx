@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +27,11 @@ import type { Category, Me } from '../src/types';
  * Finishing calls POST /setup, which also starts the 7-day Pro trial, then
  * the one-time welcome offer opens. Both questions can be skipped; Continue
  * works with nothing picked. Artwork: assets/discover/setup.jpg.
+ *
+ * Fits without scrolling on a 640pt phone: the artwork is a band behind the
+ * title (not a 380pt block the questions scroll under), the tiles and options
+ * get shorter there, and the button sits in the flow under them. It still
+ * scrolls, for large text sizes.
  */
 
 const INK = '#1E1229';
@@ -50,6 +55,7 @@ export default function Setup() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const reduce = useReducedMotion();
+  const compact = useWindowDimensions().height < 700;
   const { me, setMeData } = useAuth();
   const [step, setStep] = useState<0 | 1>(0);
   const [picked, setPicked] = useState<Category[]>([]);
@@ -83,7 +89,7 @@ export default function Setup() {
 
   return (
     <View style={styles.screen} testID="screen-setup">
-      <View style={styles.art} pointerEvents="none">
+      <View style={[styles.art, { height: insets.top + (compact ? 200 : 300) }]} pointerEvents="none">
         <Image source={ART} style={styles.fill} contentFit="cover" contentPosition="top" accessibilityElementsHidden importantForAccessibility="no" />
         <Svg style={styles.fill} width="100%" height="100%">
           <Defs>
@@ -98,7 +104,7 @@ export default function Setup() {
         </Svg>
       </View>
 
-      <View style={[styles.top, { top: insets.top + space.sm }]}>
+      <View style={[styles.top, { marginTop: insets.top + space.sm }]}>
         {step === 1 ? (
           <Pressable onPress={() => setStep(0)} accessibilityRole="button" accessibilityLabel="Back" style={styles.round} hitSlop={8} testID="setup-back">
             <Icon name="chevron-left" size={22} color="#FFFFFF" />
@@ -120,7 +126,7 @@ export default function Setup() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 236, paddingBottom: insets.bottom + 120 }]}
+        contentContainerStyle={[styles.content, { paddingTop: compact ? 64 : 150 }]}
         showsVerticalScrollIndicator={false}
       >
         <Reanimated.View key={step} entering={reduce ? undefined : FadeInRight.duration(260)} style={{ gap: space.md }}>
@@ -128,13 +134,13 @@ export default function Setup() {
             <T variant="caption" style={styles.eyebrow}>
               {step === 0 ? 'Question 1 of 2' : 'Question 2 of 2'}
             </T>
-            <T variant="display" style={styles.white} accessibilityRole="header">
+            <T variant="display" style={[styles.white, compact && { fontSize: 26, lineHeight: 31 }]} accessibilityRole="header">
               {step === 0 ? 'What usually slips through?' : 'When should reminders arrive?'}
             </T>
-            <T style={styles.lead}>
+            <T style={[styles.lead, compact && { fontSize: 15, lineHeight: 21 }]}>
               {step === 0
-                ? 'Pick any. Your empty home will suggest these first — you can track anything later.'
-                : 'One quiet nudge at this time on reminder days. Change it any time in Settings.'}
+                ? 'Pick any, or none. Home will suggest these first.'
+                : 'One quiet nudge at this time. Change it any time in Settings.'}
             </T>
           </Reanimated.View>
 
@@ -153,9 +159,9 @@ export default function Setup() {
                         tap();
                         setPicked((list) => (on ? list.filter((x) => x !== cat) : [...list, cat]));
                       }}
-                      style={({ pressed }) => [styles.tile, on && styles.tileOn, pressed && { opacity: 0.85 }]}
+                      style={({ pressed }) => [styles.tile, compact && styles.tileCompact, on && styles.tileOn, pressed && { opacity: 0.85 }]}
                     >
-                      <View style={[styles.tileIcon, on && { backgroundColor: INK }]}>
+                      <View style={[styles.tileIcon, compact && { width: 30, height: 30, borderRadius: 10 }, on && { backgroundColor: INK }]}>
                         <Icon name={CATEGORY[cat].icon} size={20} color={on ? MARIGOLD : '#FFFFFF'} />
                       </View>
                       <T variant="caption" numberOfLines={2} style={{ color: on ? INK : '#FFFFFF', fontFamily: font.semibold }}>
@@ -186,7 +192,7 @@ export default function Setup() {
                         tap();
                         setHour(h.hour);
                       }}
-                      style={({ pressed }) => [styles.option, on && styles.optionOn, pressed && { opacity: 0.85 }]}
+                      style={({ pressed }) => [styles.option, compact && { minHeight: 58 }, on && styles.optionOn, pressed && { opacity: 0.85 }]}
                     >
                       <View style={[styles.optionIcon, on && { backgroundColor: INK }]}>
                         <Icon name={h.icon} size={18} color={on ? MARIGOLD : LILAC} />
@@ -211,7 +217,7 @@ export default function Setup() {
         </Reanimated.View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space.lg }]}>
         {error ? (
           <T variant="caption" style={{ color: '#FFB4AC' }} accessibilityRole="alert">
             {error}
@@ -232,11 +238,6 @@ export default function Setup() {
             <Icon name="arrow-right" size={18} color="#FFFFFF" />
           </View>
         </Pressable>
-        {step === 0 && picked.length === 0 ? (
-          <T variant="caption" align="center" style={styles.hint}>
-            Not sure? Continue works without a pick.
-          </T>
-        ) : null}
       </View>
     </View>
   );
@@ -245,8 +246,8 @@ export default function Setup() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: INK },
   fill: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  art: { position: 'absolute', top: 0, left: 0, right: 0, height: 380 },
-  top: { position: 'absolute', left: GUTTER, right: GUTTER, zIndex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  art: { position: 'absolute', top: 0, left: 0, right: 0 },
+  top: { marginHorizontal: GUTTER, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: space.md, paddingVertical: 6, borderRadius: radius.chip, backgroundColor: MARIGOLD },
   round: {
     width: 40,
@@ -265,7 +266,6 @@ const styles = StyleSheet.create({
   white: { color: '#FFFFFF' },
   eyebrow: { color: MARIGOLD, fontFamily: font.bold },
   lead: { color: 'rgba(255,255,255,0.78)', fontSize: 16, lineHeight: 23 },
-  hint: { color: 'rgba(255,255,255,0.55)' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4, marginTop: space.xs },
   tileWrap: { width: '33.333%', padding: 4 },
   tile: {
@@ -278,6 +278,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
   },
+  tileCompact: { minHeight: 76, padding: space.sm + 2, gap: space.xs },
   tileOn: { backgroundColor: MARIGOLD, borderColor: MARIGOLD },
   tileIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
   tick: { position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: INK, alignItems: 'center', justifyContent: 'center' },
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
   },
   optionOn: { backgroundColor: MARIGOLD, borderColor: MARIGOLD },
   optionIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.1)' },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: GUTTER, paddingTop: space.md, gap: space.sm, backgroundColor: INK },
+  footer: { paddingHorizontal: GUTTER, paddingTop: space.md, gap: space.sm },
   cta: {
     height: 56,
     flexDirection: 'row',
