@@ -9,6 +9,7 @@ import { accountRouter } from './routers/account';
 import { deliverReminders, tickDelivery } from './jobs/deliver';
 import { readEnvVar } from './lib';
 import { handleError } from './errors';
+import { BRAND_LOGO_PNG_BASE64 } from './brand-logo';
 
 /**
  * Duebox's worker.
@@ -24,6 +25,17 @@ app.notFound(jsonNotFound);
 app.onError(handleError);
 
 app.get('/health', (c) => c.json({ ok: true, app: 'duebox' }));
+
+/** The mark the platform's auth emails show (deploy/email-branding.mjs). Public, cached for a day. */
+let brandLogo: Uint8Array<ArrayBuffer> | null = null;
+app.get('/api/v1/brand/logo.png', (c) => {
+  if (!brandLogo) {
+    const raw = atob(BRAND_LOGO_PNG_BASE64);
+    brandLogo = new Uint8Array(new ArrayBuffer(raw.length));
+    for (let i = 0; i < raw.length; i += 1) brandLogo[i] = raw.charCodeAt(i);
+  }
+  return c.body(brandLogo, 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' });
+});
 
 /**
  * Reminder delivery without a platform cron.

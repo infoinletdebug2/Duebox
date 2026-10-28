@@ -64,6 +64,8 @@ If Xenition's pipeline gains cron support, add `crons = ["*/5 * * * *"]` there a
 | Plan ids, trial, limits, model | Code defaults in `backend/src/config.ts` | Change in code, then redeploy |
 | Store keys, Meta CAPI, Expo access token | Not set yet | Need Worker secrets on Xenition's Cloudflare account, or pipeline support |
 | Mobile → API | `mobile/.env` `EXPO_PUBLIC_API_URL` | The app adds `/api/v1` |
+| **Email branding** (sign-up code, password reset) | **In Xenition**, per app | `node --env-file=$HOME/.xenition-admin.env deploy/email-branding.mjs` sets From name "Duebox", plum `#2E1A47` and the logo the worker serves at `/api/v1/brand/logo.png` (`backend/src/brand-logo.ts`). Unset, these emails go out as "Xenition" in gold. Set 2026-10-28 |
+| PostHog | Code defaults (shared fleet token) in `mobile/src/config.ts` and `backend/src/posthog.ts` | `EXPO_PUBLIC_POSTHOG_*` / `POSTHOG_*` override |
 
 ---
 
