@@ -2,6 +2,7 @@ import type { Context } from 'hono';
 import { appScheme } from '../config';
 import { env } from '../lib';
 import { daysBetween, todayIn } from '../logic/dates';
+import { accessOf } from '../billing';
 import { rawRows } from '../services';
 import { sendBatch, isExpoToken, type PushMessage } from '../push';
 import { dayOf, intOrNull } from '../rows';
@@ -102,6 +103,17 @@ export async function deliverReminders(c: Context): Promise<{ due: number; sent:
     `SELECT id, household_id, user_id FROM dx__member WHERE household_id = ANY($1::uuid[]) AND removed_at IS NULL`,
     [households],
   );
+  // Hard paywall: a household whose subscription has lapsed gets no reminders
+  // (its data stays, and export/delete stay open). Claimed reminders for it
+  // are skipped, not resent later. Billing down → accessOf grants (BR-12).
+  const owners = await rawRows<{ id: string; owner_user_id: string }>(
+    c,
+    `SELECT id, owner_user_id FROM dx__household WHERE id = ANY($1::uuid[])`,
+    [households],
+  );
+  const locked = new Set<string>();
+  for (const h of owners) if (!(await accessOf(c, h.owner_user_id)).entitled) locked.add(h.id);
+
   const userIds = [...new Set(members.map((m) => m.user_id))];
   const profiles = userIds.length
     ? await rawRows<{ user_id: string; prefs_reminders: boolean; prefs_overdue: boolean }>(
@@ -125,7 +137,7 @@ export async function deliverReminders(c: Context): Promise<{ due: number; sent:
   const outbox: { reminderId: string; message: PushMessage }[] = [];
 
   for (const r of due) {
-    if (now - new Date(r.fire_at).getTime() > STALE_MS) {
+    if (locked.has(r.household_id) || now - new Date(r.fire_at).getTime() > STALE_MS) {
       skippedIds.push(r.id);
       continue;
     }

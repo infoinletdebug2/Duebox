@@ -24,10 +24,7 @@ import {
   parseInteger,
 } from '../lib';
 import { appScheme, inviteDays, maxMembers } from '../config';
-import { requireHousehold, requireOwner, assertHouseholdSharing } from '../middleware';
-import { TRIAL_DAYS, startTrialOnce } from '../billing';
-import { trackServerEvent } from '../meta';
-import { capturePosthog } from '../posthog';
+import { requireHousehold, requireOwner, requireSubscription } from '../middleware';
 import { CATEGORIES } from '../logic/extract';
 import { householdRow, rawRows, replanHousehold, transaction } from '../services';
 import { type MemberRow, memberWire } from '../rows';
@@ -59,8 +56,8 @@ export const householdRouter = defineRouter({
 
     /**
      * The owner's setup after sign-up: two taps, no typing (what slips
-     * through, when to be reminded). Finishing it starts the 7-day Pro trial
-     * — once per account — and the app then shows the one-time offer.
+     * through, when to be reminded). Nothing is granted here: the app shows
+     * the paywall next, where the store's own free trial starts (hard paywall).
      */
     app.post('/setup', requireAuth, requireOwner, rateLimit(20), async (c) => {
       const body = (await jsonBody(c)) ?? {};
@@ -80,13 +77,8 @@ export const householdRouter = defineRouter({
       await scoped(c).from('dx__profile').where('user_id', userId(c)).update({ setup_done_at: nowIso(), updated_at: nowIso() }).run();
       if (hour?.ok && hour.value !== Number(before.remind_hour)) await replanHousehold(c, await householdRow(c));
 
-      const trialStarted = await startTrialOnce(c, userId(c));
-      if (trialStarted) {
-        trackServerEvent(c, { userId: userId(c), eventName: 'StartTrial', eventId: `trial-${userId(c)}` });
-        capturePosthog(c, 'trial_started', userId(c), { trial_days: TRIAL_DAYS(c), via: 'setup' });
-      }
       const email = (await sdk(c).auth.me(bearer(c))).email;
-      return ok(c, { ...(await mePayload(c, userId(c), email)), trialStarted });
+      return ok(c, await mePayload(c, userId(c), email));
     });
 
     app.patch('/household', requireAuth, requireOwner, async (c) => {
@@ -124,7 +116,7 @@ export const householdRouter = defineRouter({
 
     /* ── members ────────────────────────────────────────────────────────── */
 
-    app.get('/household/members', requireAuth, requireHousehold, async (c) => {
+    app.get('/household/members', requireAuth, requireSubscription, async (c) => {
       const rows = await ours(c, 'dx__member').whereNull('removed_at').orderBy('created_at').rows<MemberRow>();
       return ok(c, rows.map((m) => memberWire(m, me(c).memberId)));
     });
@@ -162,8 +154,7 @@ export const householdRouter = defineRouter({
     });
 
     /** The code is returned ONCE, here, and stored hashed. */
-    app.post('/household/invites', requireAuth, requireOwner, rateLimit(20), async (c) => {
-      await assertHouseholdSharing(c);
+    app.post('/household/invites', requireAuth, requireOwner, requireSubscription, rateLimit(20), async (c) => {
       const members = await ours(c, 'dx__member').whereNull('removed_at').count();
       const open = await ours(c, 'dx__invite').whereNull('accepted_at').whereNull('revoked_at').gt('expires_at', nowIso()).count();
       const cap = maxMembers(env(c));

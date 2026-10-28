@@ -1,8 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { AppError, env, fail, membership, me, ours, scoped } from './lib';
 import { proScans } from './config';
-import { entitlementOf, isPro, limitsFor } from './billing';
-import { FREE_OFFSETS } from './logic/planner';
+import { accessOf } from './billing';
 import { todayIn } from './logic/dates';
 
 /**
@@ -29,58 +28,39 @@ export async function ownerUserIdOf(c: Context): Promise<string> {
   return row?.owner_user_id ?? me(c).userId;
 }
 
-async function check(c: Context) {
-  return entitlementOf(c, await ownerUserIdOf(c));
-}
-
-function gate(reason: string, message: string): AppError {
-  return new AppError('SUBSCRIPTION_REQUIRED', message, 402, undefined, reason);
-}
-
-/* ── the gates (CONTRACT §3). Each fails OPEN when billing cannot answer. ── */
-
-/** +limit: open items after this write must stay within the plan. */
-export async function assertRoomFor(c: Context, adding: number): Promise<void> {
-  const limits = limitsFor(c, await check(c));
-  if (limits.openItems === null) return;
-  const open = await ours(c, 'dx__item').where('status', 'open').whereNull('deleted_at').count();
-  if (Number(open) + adding > limits.openItems) {
-    throw gate(
-      'item_limit',
-      `Free keeps ${limits.openItems} deadlines at a time. Mark one done, or go Pro to track everything.`,
+/**
+ * The hard paywall, server side (CONTRACT §3): every household data route
+ * answers 402 SUBSCRIPTION_REQUIRED unless the owner's subscription (or its
+ * store free trial) is live. The app treats that 402 as "re-read the plan
+ * and show the paywall". Never gated: sign-in, setup, billing, devices,
+ * export, leaving a household and deleting the account — someone who
+ * stopped paying can still take their data and go (App Review 5.1.1(v)).
+ */
+export const requireSubscription: MiddlewareHandler = async (c, next) => {
+  const mine = await membership(c);
+  if (!mine) return fail(c, 'HOUSEHOLD_REQUIRED', 'Open the app again to finish setting up.', 409);
+  const access = await accessOf(c, await ownerUserIdOf(c));
+  if (!access.entitled) {
+    throw new AppError(
+      'SUBSCRIPTION_REQUIRED',
+      mine.role === 'owner'
+        ? 'Start your Duebox subscription to keep going.'
+        : 'This household’s Duebox subscription has ended. Ask the person who set it up to renew it.',
+      402,
+      undefined,
+      'subscription_required',
     );
   }
-}
+  await next();
+};
 
-/** +scan allowance: reads this month (household timezone) below the plan's. */
+/** A fair-use ceiling on AI reads, per household per month (household timezone). */
 export async function assertScanAllowance(c: Context): Promise<string> {
-  const limits = limitsFor(c, await check(c));
+  const ceiling = proScans(env(c));
   const month = todayIn(me(c).timezone).slice(0, 7);
   const row = await ours(c, 'dx__usage').where('month', month).first<{ scans: number | string }>();
-  if (Number(row?.scans ?? 0) >= limits.scansPerMonth) {
-    throw gate(
-      'scan_limit',
-      `You’ve used this month’s ${limits.scansPerMonth} scans. Type it in for now, or go Pro for ${proScans(env(c))} a month.`,
-    );
+  if (Number(row?.scans ?? 0) >= ceiling) {
+    throw new AppError('SCAN_LIMIT', `You’ve read ${ceiling} letters this month. Type this one in, or scan again next month.`, 429, undefined, 'scan_limit');
   }
   return month;
-}
-
-/** Custom reminder offsets are Pro (FR-R2). Free may send the default or nothing. */
-export async function assertOffsetsAllowed(c: Context, offsets: number[] | undefined): Promise<void> {
-  if (offsets === undefined) return;
-  const same = offsets.length === FREE_OFFSETS.length && offsets.every((o, i) => o === FREE_OFFSETS[i]);
-  if (same) return;
-  if (isPro(await check(c))) return;
-  throw gate('custom_reminders', 'Choosing when you’re reminded is part of Pro.');
-}
-
-/** Household sharing is Pro. */
-export async function assertHouseholdSharing(c: Context): Promise<void> {
-  if (isPro(await check(c))) return;
-  throw gate('household', 'Sharing with your household is part of Pro.');
-}
-
-export async function proNow(c: Context): Promise<boolean> {
-  return isPro(await check(c));
 }

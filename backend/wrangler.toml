@@ -14,7 +14,7 @@ APP_SCHEME = "duebox"
 APPLE_BUNDLE_ID = "app.duebox.mobile"
 GOOGLE_PACKAGE_NAME = "app.duebox.mobile"
 READER_MODEL = "google/gemini-2.5-flash"
-TRIAL_DAYS = "7"
+TRIAL_DAYS = "3"
 
 # Secrets — `wrangler secret put <NAME>`, never committed:
 #   XENITION_API_KEY        service key for THIS app

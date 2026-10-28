@@ -3,18 +3,20 @@ import { defineRouter } from '@xenition/sdk/hono';
 import { handleAppleNotification, handleGoogleNotification } from '@xenition/sdk';
 import type { RecordPurchaseInput } from '@xenition/sdk';
 import { ok, fail, invalid, jsonBody, userId, parseText } from '../lib';
-import { PRO, PRODUCT_IDS, TRIAL_DAYS, appleStore, googleStore, billing, forgetEntitlement, planPayload, startTrialOnce } from '../billing';
+import { PRO, PRODUCT_IDS, TRIAL_DAYS, appleStore, googleStore, billing, forgetAccess, planPayload } from '../billing';
 import { requireHousehold, requireOwner } from '../middleware';
 import { householdRow } from '../services';
-import { netValueFor, trackServerEvent } from '../meta';
-import { capturePosthog } from '../posthog';
+import { countMilestones } from '../milestones';
 import { handleError } from '../errors';
 
 /**
  * `billing` — the subscription over HTTP (SRS FR-B1…B5, CONTRACT §2.6).
+ * Hard paywall: no free tier and no server trial; the only free time is the
+ * stores' own 3-day intro offer on yearly, with the card taken upfront.
  *
  * **The device never says what it bought.** It hands over a transaction id
- * (Apple) or a purchase token (Play) and the server asks the store.
+ * (Apple) or a purchase token (Play) and the server asks the store. Trial
+ * starts, conversions and endings are counted once per chain (milestones.ts).
  */
 export const billingRouter = defineRouter({
   name: 'billing',
@@ -22,13 +24,15 @@ export const billingRouter = defineRouter({
   build(app, { requireAuth, rateLimit }) {
     app.onError(handleError);
 
+    /** Never gated: the paywall reads it to decide whether to stand aside. */
     app.get('/billing/plan', requireAuth, requireHousehold, async (c) => {
       return ok(c, await planPayload(c, await householdRow(c)));
     });
 
     /**
      * The catalog: ids and periods, never prices — StoreKit and Play render
-     * those, localised. `offer` marks the one-time welcome-offer products.
+     * those, localised. `trial` marks the product that carries the stores'
+     * free intro offer (yearly); the store still decides eligibility.
      */
     app.get('/billing/products', requireAuth, async (c) => {
       const platform = c.req.query('platform');
@@ -38,10 +42,8 @@ export const billingRouter = defineRouter({
         trialDays: TRIAL_DAYS(c),
         entitlement: PRO(c),
         products: [
-          { productId: ids.monthly, label: 'Monthly', period: 'month', highlight: false, offer: false },
-          { productId: ids.yearly, label: 'Yearly', period: 'year', highlight: true, offer: false },
-          { productId: ids.offerMonthly, label: 'Monthly', period: 'month', highlight: false, offer: true },
-          { productId: ids.offerYearly, label: 'Yearly', period: 'year', highlight: true, offer: true },
+          { productId: ids.yearly, label: 'Yearly', period: 'year', highlight: true, trial: true },
+          { productId: ids.monthly, label: 'Monthly', period: 'month', highlight: false, trial: false },
         ],
       });
     });
@@ -54,14 +56,12 @@ export const billingRouter = defineRouter({
       if (!platform) return invalid(c, 'A platform of apple or google is required.');
 
       let record: RecordPurchaseInput;
-      let eventId: string;
       if (platform === 'apple') {
         const store = appleStore(c);
         if (!store) return storeUnconfigured(c, 'apple');
         const transactionId = parseText(body.transactionId, 120);
         if (!transactionId.ok) return invalid(c, 'A transaction id is required.');
         record = await store.verify({ userId: uid, transactionId: transactionId.value });
-        eventId = transactionId.value;
       } else {
         const store = googleStore(c);
         if (!store) return storeUnconfigured(c, 'google');
@@ -73,18 +73,13 @@ export const billingRouter = defineRouter({
         await store
           .acknowledge({ productId: productId.value, purchaseToken: purchaseToken.value, kind: 'subscription' })
           .catch((err) => console.error('play acknowledge failed:', err instanceof Error ? err.message : err));
-        eventId = purchaseToken.value.slice(0, 64);
       }
 
-      await billing(c).recordPurchase(record);
-      forgetEntitlement(c, uid);
-      const productId = (record as { productId?: string }).productId ?? '';
-      const net = netValueFor(c, productId);
-      trackServerEvent(c, { userId: uid, eventName: 'Subscribe', eventId, value: net.value, currency: net.currency });
-      // A Play restore replays owned purchases through here (`restore: true`): already counted once.
-      if (body.restore !== true) {
-        capturePosthog(c, 'purchase_completed', uid, { type: 'subscription', product_id: productId, platform, value: net.value, currency: net.currency });
-      }
+      const purchase = await billing(c).recordPurchase(record);
+      forgetAccess(c, uid);
+      // Trial started / first charge / restore: counted once per chain, so a
+      // Play restore replaying owned purchases through here counts nothing new.
+      await countMilestones(c, purchase);
       return ok(c, await planPayload(c, await householdRow(c)));
     });
 
@@ -97,25 +92,19 @@ export const billingRouter = defineRouter({
       const originalTransactionId = parseText(body?.originalTransactionId, 120);
       if (!originalTransactionId.ok) return invalid(c, 'An original transaction id is required.');
       const records = await store.restore({ userId: uid, originalTransactionId: originalTransactionId.value });
-      for (const record of records) await billing(c).recordPurchase(record);
-      forgetEntitlement(c, uid);
+      for (const record of records) await countMilestones(c, await billing(c).recordPurchase(record));
+      forgetAccess(c, uid);
       return ok(c, { ...(await planPayload(c, await householdRow(c))), restored: records.length });
     });
 
-    /** Retry for a trial whose start was swallowed at setup. Once per account. */
-    app.post('/billing/trial', requireAuth, requireOwner, rateLimit(10), async (c) => {
-      const uid = userId(c);
-      const started = await startTrialOnce(c, uid);
-      const plan = await planPayload(c, await householdRow(c));
-      if (!started && !plan.isTrial) return fail(c, 'CONFLICT', 'This account has already used its free trial.', 409);
-      if (started) {
-        trackServerEvent(c, { userId: uid, eventName: 'StartTrial', eventId: `trial-${uid}` });
-        capturePosthog(c, 'trial_started', uid, { trial_days: TRIAL_DAYS(c), via: 'retry' });
-      }
-      return ok(c, plan);
-    });
-
-    /* ── stores calling us: unauthenticated, verified by the SDK, deduped ── */
+    /*
+     * ── stores calling us ──────────────────────────────────────────────────
+     * Unauthenticated. The SDK treats a notification as a trigger and
+     * re-reads the purchase from the store with our own credentials, so a
+     * forged body changes nothing; it is deduplicated on the store's id.
+     * The refreshed purchase is where a trial converting to paid, or a
+     * subscription ending, is noticed.
+     */
 
     app.post('/billing/apple/notifications', async (c) => {
       const store = appleStore(c);
@@ -123,7 +112,9 @@ export const billingRouter = defineRouter({
       const body = await jsonBody(c);
       const signedPayload = typeof body?.signedPayload === 'string' ? body.signedPayload : '';
       if (!signedPayload) return c.json({ ok: false }, 400);
-      await handleAppleNotification({ billing: billing(c), apple: store, signedPayload });
+      const result = await handleAppleNotification({ billing: billing(c), apple: store, signedPayload });
+      if (result.purchase) await countMilestones(c, result.purchase);
+      else if (result.reason === 'unknown_purchase') console.warn('apple notification for a chain no account has verified yet:', result.notificationType);
       return c.json({ ok: true });
     });
 
@@ -131,7 +122,9 @@ export const billingRouter = defineRouter({
       const store = googleStore(c);
       if (!store) return c.json({ ok: false }, 503);
       const body = await jsonBody(c);
-      await handleGoogleNotification({ billing: billing(c), google: store, body: (body ?? {}) as Record<string, unknown> });
+      const result = await handleGoogleNotification({ billing: billing(c), google: store, body: (body ?? {}) as Record<string, unknown> });
+      if (result.purchase) await countMilestones(c, result.purchase);
+      else if (result.reason === 'unknown_purchase') console.warn('play notification for a token no account has verified yet:', result.notificationType);
       return c.json({ ok: true });
     });
   },

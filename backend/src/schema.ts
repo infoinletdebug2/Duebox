@@ -215,4 +215,17 @@ export const APP_MIGRATIONS: Migration[] = [
     id: 'dx/0017_seed_job_tick_deliver',
     sql: `INSERT INTO dx__job_tick (name, last_at) VALUES ('deliver', 'epoch') ON CONFLICT (name) DO NOTHING`,
   },
+  {
+    // Hard paywall: what has already been counted for a store subscription
+    // chain (trial_started, trial_converted, ended), so analytics and ads see
+    // each milestone once however often the store re-sends (routers/billing.ts).
+    id: 'dx/0018_create_subscription_mark',
+    sql: `CREATE TABLE IF NOT EXISTS dx__subscription_mark (
+  chain text NOT NULL,
+  mark text NOT NULL,
+  user_id text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (chain, mark)
+)`,
+  },
 ];

@@ -2,10 +2,10 @@ import type { Context } from 'hono';
 import { defineRouter } from '@xenition/sdk/hono';
 import { me, ours, env, ok, created, invalid, fail, notFound, jsonBody, id, AppError } from '../lib';
 import { maxImageBytes, maxPdfBytes } from '../config';
-import { requireHousehold, assertRoomFor, assertOffsetsAllowed, proNow } from '../middleware';
+import { requireSubscription } from '../middleware';
 import { planPayload } from '../billing';
 import { ACTIONS, CATEGORIES, maskReference, type Action, type Category } from '../logic/extract';
-import { FREE_OFFSETS, OFFSETS, PRO_DEFAULT_OFFSETS, REPEATS, nextDueDate, snoozeAt, type Repeat } from '../logic/planner';
+import { OFFSETS, PRO_DEFAULT_OFFSETS, REPEATS, nextDueDate, snoozeAt, type Repeat } from '../logic/planner';
 import { toDay } from '../logic/dates';
 import {
   type Statement,
@@ -157,8 +157,8 @@ export async function assertAssignee(c: Context, assigneeId: string | null): Pro
   if (!found) throw new AppError('VALIDATION_ERROR', 'Choose someone in your household.', 400, { assigneeId: 'INVALID' });
 }
 
-export async function defaultOffsets(c: Context): Promise<number[]> {
-  return (await proNow(c)) ? PRO_DEFAULT_OFFSETS : FREE_OFFSETS;
+export async function defaultOffsets(_c: Context): Promise<number[]> {
+  return PRO_DEFAULT_OFFSETS;
 }
 
 export function insertItemStatement(
@@ -191,7 +191,7 @@ export const itemsRouter = defineRouter({
     app.onError(handleError);
 
     /** Home in one round trip (CONTRACT §1 `Home`). */
-    app.get('/home', requireAuth, requireHousehold, async (c) => {
+    app.get('/home', requireAuth, requireSubscription, async (c) => {
       const household = await householdRow(c);
       const open = await itemsWire(c, await listOpen(c));
       const overdue = open.filter((i) => i.daysLeft < 0);
@@ -216,7 +216,7 @@ export const itemsRouter = defineRouter({
     });
 
     /** Open: due date ascending. Done: most recently done first. 30 a page. */
-    app.get('/items', requireAuth, requireHousehold, async (c) => {
+    app.get('/items', requireAuth, requireSubscription, async (c) => {
       const status = c.req.query('status') === 'done' ? 'done' : 'open';
       const category = c.req.query('category');
       const q = (c.req.query('q') ?? '').trim().slice(0, 80);
@@ -237,20 +237,18 @@ export const itemsRouter = defineRouter({
       return ok(c, { items: await itemsWire(c, page), nextCursor: rows.length > 30 ? String(offset + 30) : null });
     });
 
-    app.get('/items/:id', requireAuth, requireHousehold, async (c) => {
+    app.get('/items/:id', requireAuth, requireSubscription, async (c) => {
       const row = await ownItem(c, c.req.param('id'));
       if (!row) return notFound(c, 'That deadline is not here any more.');
       return ok(c, await itemDetail(c, row));
     });
 
-    app.post('/items', requireAuth, requireHousehold, async (c) => {
+    app.post('/items', requireAuth, requireSubscription, async (c) => {
       const body = await jsonBody(c);
       if (!body) return invalid(c, 'Expected a JSON body.');
       const parsed = parseItemInput(body, null, await defaultOffsets(c));
       if (!parsed.ok) return invalid(c, parsed.message, { [parsed.field]: 'INVALID' });
-      await assertOffsetsAllowed(c, body.offsets === undefined ? undefined : parsed.value.offsets);
       await assertAssignee(c, parsed.value.assigneeId);
-      await assertRoomFor(c, 1);
 
       const household = await householdRow(c);
       const itemId = id();
@@ -262,7 +260,7 @@ export const itemsRouter = defineRouter({
       return created(c, await itemDetail(c, row as ItemRow));
     });
 
-    app.patch('/items/:id', requireAuth, requireHousehold, async (c) => {
+    app.patch('/items/:id', requireAuth, requireSubscription, async (c) => {
       const row = await ownItem(c, c.req.param('id'));
       if (!row) return notFound(c, 'That deadline is not here any more.');
       const body = await jsonBody(c);
@@ -271,7 +269,6 @@ export const itemsRouter = defineRouter({
       const parsed = parseItemInput(body, base, base.offsets);
       if (!parsed.ok) return invalid(c, parsed.message, { [parsed.field]: 'INVALID' });
       const f = parsed.value;
-      if (body.offsets !== undefined && f.offsets.join() !== base.offsets.join()) await assertOffsetsAllowed(c, f.offsets);
       if (f.assigneeId !== base.assigneeId) await assertAssignee(c, f.assigneeId);
 
       const household = await householdRow(c);
@@ -296,7 +293,7 @@ export const itemsRouter = defineRouter({
      * FR-I5/I6 — done. A repeating item makes its next occurrence in the
      * same write. Idempotent: the notification's Done button may retry.
      */
-    app.post('/items/:id/done', requireAuth, requireHousehold, async (c) => {
+    app.post('/items/:id/done', requireAuth, requireSubscription, async (c) => {
       const replay = await remembered(c);
       if (replay !== undefined) return ok(c, replay);
       const row = await ownItem(c, c.req.param('id'));
@@ -334,11 +331,10 @@ export const itemsRouter = defineRouter({
       return ok(c, response);
     });
 
-    app.post('/items/:id/reopen', requireAuth, requireHousehold, async (c) => {
+    app.post('/items/:id/reopen', requireAuth, requireSubscription, async (c) => {
       const row = await ownItem(c, c.req.param('id'));
       if (!row) return notFound(c, 'That deadline is not here any more.');
       if (row.status === 'open') return ok(c, (await itemsWire(c, [row]))[0]);
-      await assertRoomFor(c, 1);
       const household = await householdRow(c);
       await transaction(c, [
         { sql: `UPDATE dx__item SET status = 'open', done_at = NULL, done_by = NULL, updated_at = now() WHERE id = $1::uuid AND household_id = $2::uuid`, params: [row.id, household.id] },
@@ -348,7 +344,7 @@ export const itemsRouter = defineRouter({
     });
 
     /** FR-R6 — one more reminder in 1, 3 or 7 days at the household's hour. Idempotent. */
-    app.post('/items/:id/snooze', requireAuth, requireHousehold, async (c) => {
+    app.post('/items/:id/snooze', requireAuth, requireSubscription, async (c) => {
       const replay = await remembered(c);
       if (replay !== undefined) return ok(c, replay);
       const row = await ownItem(c, c.req.param('id'));
@@ -373,7 +369,7 @@ export const itemsRouter = defineRouter({
     });
 
     /** Soft-deletes the item; its files and reminders go for good. */
-    app.delete('/items/:id', requireAuth, requireHousehold, async (c) => {
+    app.delete('/items/:id', requireAuth, requireSubscription, async (c) => {
       const row = await ownItem(c, c.req.param('id'));
       if (!row) return notFound(c, 'That deadline is not here any more.');
       const householdId = me(c).householdId;
@@ -401,7 +397,7 @@ export const itemsRouter = defineRouter({
 
     /* ── attachments (FR-I8) ────────────────────────────────────────────── */
 
-    app.post('/items/:id/attachments', requireAuth, requireHousehold, async (c) => {
+    app.post('/items/:id/attachments', requireAuth, requireSubscription, async (c) => {
       const row = await ownItem(c, c.req.param('id'));
       if (!row) return notFound(c, 'That deadline is not here any more.');
       const body = await jsonBody(c);
@@ -431,7 +427,7 @@ export const itemsRouter = defineRouter({
       return created(c, { documentId, uploads });
     });
 
-    app.delete('/items/:id/attachments/:documentId', requireAuth, requireHousehold, async (c) => {
+    app.delete('/items/:id/attachments/:documentId', requireAuth, requireSubscription, async (c) => {
       const row = await ownItem(c, c.req.param('id'));
       if (!row) return notFound(c, 'That deadline is not here any more.');
       const documentId = c.req.param('documentId');

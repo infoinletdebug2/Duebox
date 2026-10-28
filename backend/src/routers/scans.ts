@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
 import { defineRouter } from '@xenition/sdk/hono';
 import { me, ours, ok, created, invalid, fail, notFound, jsonBody, id } from '../lib';
-import { requireHousehold, assertRoomFor, assertScanAllowance, assertOffsetsAllowed } from '../middleware';
+import { requireSubscription, assertScanAllowance } from '../middleware';
 import { ReadFailed, readDocument, readerConfigured } from '../reader';
 import type { Candidate } from '../logic/extract';
 import {
@@ -54,7 +54,7 @@ export const scansRouter = defineRouter({
     app.onError(handleError);
 
     /** The scan row and one presigned PUT per page. The worker never carries the bytes. */
-    app.post('/scans', requireAuth, requireHousehold, rateLimit(30), async (c) => {
+    app.post('/scans', requireAuth, requireSubscription, rateLimit(30), async (c) => {
       const body = await jsonBody(c);
       if (!body) return invalid(c, 'Expected a JSON body.');
       const source = ['camera', 'library', 'pdf'].includes(body.source as string) ? (body.source as string) : null;
@@ -87,7 +87,7 @@ export const scansRouter = defineRouter({
     });
 
     /** Read the uploaded pages. A scan that finds something counts against the month. */
-    app.post('/scans/:id/read', requireAuth, requireHousehold, rateLimit(20), async (c) => {
+    app.post('/scans/:id/read', requireAuth, requireSubscription, rateLimit(20), async (c) => {
       const d = await ownScan(c, c.req.param('id'));
       if (!d) return notFound(c, 'That scan is not here any more.');
       if (d.status === 'confirmed') return fail(c, 'CONFLICT', 'This scan is already saved.', 409);
@@ -142,14 +142,14 @@ export const scansRouter = defineRouter({
       return ok(c, await scanWire(c, (await ownScan(c, d.id)) as DocumentRow));
     });
 
-    app.get('/scans/:id', requireAuth, requireHousehold, async (c) => {
+    app.get('/scans/:id', requireAuth, requireSubscription, async (c) => {
       const d = await ownScan(c, c.req.param('id'));
       if (!d) return notFound(c, 'That scan is not here any more.');
       return ok(c, await scanWire(c, d));
     });
 
     /** BR-02: only this turns a draft into deadlines. 1–3 items; every page attaches to each. */
-    app.post('/scans/:id/confirm', requireAuth, requireHousehold, async (c) => {
+    app.post('/scans/:id/confirm', requireAuth, requireSubscription, async (c) => {
       const d = await ownScan(c, c.req.param('id'));
       if (!d) return notFound(c, 'That scan is not here any more.');
       if (d.status === 'confirmed') return fail(c, 'CONFLICT', 'This scan is already saved.', 409);
@@ -171,8 +171,6 @@ export const scansRouter = defineRouter({
         const evidence = candidate && candidate.dueDate === p.value.dueDate ? candidate.evidence : null;
         parsed.push({ fields: p.value, evidence, customOffsets: r.offsets !== undefined });
       }
-      for (const p of parsed) if (p.customOffsets) await assertOffsetsAllowed(c, p.fields.offsets);
-      await assertRoomFor(c, parsed.length);
 
       const household = await householdRow(c);
       const ids = parsed.map(() => id());
@@ -192,7 +190,7 @@ export const scansRouter = defineRouter({
     });
 
     /** Discard an unsaved scan and its files. */
-    app.delete('/scans/:id', requireAuth, requireHousehold, async (c) => {
+    app.delete('/scans/:id', requireAuth, requireSubscription, async (c) => {
       const d = await ownScan(c, c.req.param('id'));
       if (!d) return notFound(c, 'That scan is not here any more.');
       if (d.status === 'confirmed') return fail(c, 'CONFLICT', 'This scan is saved to deadlines — delete those instead.', 409);

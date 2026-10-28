@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { env, readEnvVar, scoped } from './lib';
-import { bundleId, productIds } from './config';
+import { bundleId, listPrices, productIds } from './config';
 
 /**
  * Meta Conversions API for app events — the server half of ads measurement.
@@ -41,13 +41,8 @@ export function metaConfigured(c: Context): boolean {
 export function netValueFor(c: Context, productId: string): { value: number; currency: string } {
   const read = env(c);
   const ids = productIds(read);
-  const price = (name: string, fallback: number) => Number(read(name) ?? '') || fallback;
-  const gross =
-    productId === ids.monthly ? price('META_VALUE_MONTHLY', 4.99)
-    : productId === ids.yearly ? price('META_VALUE_YEARLY', 34.99)
-    : productId === ids.offerMonthly ? price('META_VALUE_OFFER_MONTHLY', 3.99)
-    : productId === ids.offerYearly ? price('META_VALUE_OFFER_YEARLY', 27.99)
-    : 0;
+  const list = listPrices(read);
+  const gross = productId === ids.monthly ? list.monthly : productId === ids.yearly ? list.yearly : 0;
   return { value: Math.round(gross * NET_OF_STORE_FEE * 100) / 100, currency: read('META_VALUE_CURRENCY')?.trim() || 'USD' };
 }
 

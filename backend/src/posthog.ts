@@ -27,7 +27,7 @@ const APP = 'duebox';
 const DEFAULT_TOKEN = 'phc_kCdWSEDneUZ7QQrBR6jrKqhabvGEbviJzaCKrqZnDavm';
 const DEFAULT_HOST = 'https://us.i.posthog.com';
 
-export type PosthogServerEvent = 'trial_started' | 'purchase_completed';
+export type PosthogServerEvent = 'trial_started' | 'purchase_completed' | 'subscription_ended';
 
 function background(c: Context, work: Promise<void>): void {
   try {

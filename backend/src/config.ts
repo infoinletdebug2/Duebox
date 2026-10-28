@@ -21,36 +21,45 @@ function num(read: EnvReader, name: string, fallback: number): number {
 /* ── the plan (SRS FR-B, CONTRACT §3) ────────────────────────────────────── */
 
 export const proEntitlement = (read: EnvReader) => str(read, 'PRO_ENTITLEMENT', 'pro');
-/** The free Pro trial every new household gets after setup. */
-export const trialDays = (read: EnvReader) => num(read, 'TRIAL_DAYS', 7);
+/**
+ * The stores' free intro offer on YEARLY (card upfront). Configured in App
+ * Store Connect / Play Console, which decide eligibility and length; this is
+ * the copy fallback when the store cannot say.
+ */
+export const trialDays = (read: EnvReader) => num(read, 'TRIAL_DAYS', 3);
 
+/** Hard paywall: two products, one subscription group. $7.99 / $39.99 (SRS §9). */
 export function productIds(read: EnvReader) {
   return {
     monthly: str(read, 'PRO_MONTHLY_ID', 'duebox_pro_monthly'),
     yearly: str(read, 'PRO_YEARLY_ID', 'duebox_pro_yearly'),
-    // The one-time welcome offer after setup (app/offer.tsx): the same Pro,
-    // as separately priced store products. Same entitlement.
-    offerMonthly: str(read, 'OFFER_MONTHLY_ID', 'duebox_pro_monthly_offer'),
-    offerYearly: str(read, 'OFFER_YEARLY_ID', 'duebox_pro_yearly_offer'),
   };
 }
+
+/** List prices (USD) for ad value estimates only; the store charges its own. */
+export function listPrices(read: EnvReader) {
+  return {
+    monthly: num(read, 'PRICE_MONTHLY', 7.99),
+    yearly: num(read, 'PRICE_YEARLY', 39.99),
+  };
+}
+
+/** The soft model's welcome-offer products: kept defined, never sold again. */
+const RETIRED_PRODUCTS = ['duebox_pro_monthly_offer', 'duebox_pro_yearly_offer'];
 
 export function productCatalog(read: EnvReader): DefineProductInput[] {
   const entitlement = proEntitlement(read);
   const ids = productIds(read);
   const rows = [
-    { productId: ids.monthly, period: 'monthly' },
-    { productId: ids.yearly, period: 'yearly' },
-    { productId: ids.offerMonthly, period: 'monthly' },
-    { productId: ids.offerYearly, period: 'yearly' },
+    { productId: ids.monthly, period: 'monthly', active: true },
+    { productId: ids.yearly, period: 'yearly', active: true },
+    ...RETIRED_PRODUCTS.map((productId) => ({ productId, period: productId.includes('yearly') ? 'yearly' : 'monthly', active: false })),
   ];
   return (['apple', 'google'] as const).flatMap((platform) =>
-    rows.map((row) => ({ productId: row.productId, platform, entitlement, kind: 'subscription' as const, period: row.period })),
+    rows.map((row) => ({ productId: row.productId, platform, entitlement, kind: 'subscription' as const, period: row.period, active: row.active })),
   );
 }
 
-export const freeOpenItems = (read: EnvReader) => num(read, 'FREE_OPEN_ITEMS', 5);
-export const freeScans = (read: EnvReader) => num(read, 'FREE_SCANS', 3);
 export const proScans = (read: EnvReader) => num(read, 'PRO_SCANS', 100);
 export const maxMembers = (read: EnvReader) => num(read, 'MAX_MEMBERS', 5);
 
