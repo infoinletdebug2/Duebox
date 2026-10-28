@@ -52,3 +52,7 @@ DOC_URL_TTL=900
 # src/posthog.ts has it built in, so these only override it.
 POSTHOG_TOKEN=phc_kCdWSEDneUZ7QQrBR6jrKqhabvGEbviJzaCKrqZnDavm
 POSTHOG_HOST=https://us.i.posthog.com
+
+# App Review / hands-on demo account (scripts/demo-account.ts, demo-check.ts). Fill locally; never commit.
+DEMO_EMAIL=
+DEMO_PASSWORD=

@@ -52,3 +52,11 @@ Live check: `cd backend && npx tsx --env-file=.dev.vars scripts/paywall-check.ts
 4. **Google**: follow `linkedPurchaseToken` (plan switch / resubscribe) and handle `voidedPurchaseNotification` (refunds).
 5. **Optional**: verify Apple's JWS x5c chain and Pub/Sub's OIDC token (today notifications are only triggers to re-read from the store, which limits the damage).
 6. **Sandbox**: the SDK README says sandbox never unlocks production — that must stay **off by default**: App Review buys with sandbox accounts against the production server. Mark sandbox purchases for analytics instead (Duebox sends `sandbox: true` on its events).
+
+## Review / test account
+
+`demo@infoinlet.com` — set up, email confirmed, **Pro with no expiry** (a support grant, not a purchase), so it never meets the paywall, plus the demo deadlines. The password is in `backend/.dev.vars` (`DEMO_PASSWORD`) and goes into App Store Connect → App Review Information and Play Console → App access — never into this public repo.
+
+- (Re)create it, e.g. after a reviewer deleted it: `cd backend && npx tsx --env-file=.dev.vars scripts/demo-account.ts`
+- Check every feature as that account (removes what it creates): `npx tsx --env-file=.dev.vars scripts/demo-check.ts` — 35/35 on production, 2026-10-28.
+- New accounts still get the hard paywall: `scripts/paywall-check.ts` — 21/21.
