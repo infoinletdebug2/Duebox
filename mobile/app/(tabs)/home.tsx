@@ -28,7 +28,9 @@ import type { Category, Item } from '../../src/types';
  *
  * The headline is a sentence worked out from the data ("1 overdue, 2 due this
  * week."), not a greeting. Under it, the next 14 days as date cells — the one
- * memorable element — then Next up and the sections. Empty home has one action.
+ * memorable element — then Next up straight away, then what needs you (a scan
+ * to check, reminders off, the plan), then the sections. Empty home has one
+ * action.
  */
 export default function Home() {
   const router = useRouter();
@@ -110,38 +112,47 @@ export default function Home() {
   const upcoming = [...data.thisWeek, ...data.thisMonth];
   const sub = monthCents > 0 ? `${money(monthCents)} due in the next 30 days` : data.nextUp ? `Next: ${data.nextUp.title}` : null;
 
+  // A scan waiting to be checked — shown on the empty home too: a first scan not yet confirmed leaves no deadlines.
+  const inboxRow =
+    data.inbox.length > 0 ? (
+      <Press onPress={() => router.push({ pathname: '/scan/[id]', params: { id: data.inbox[0]!.id } })} accessibilityRole="button" style={s.inbox} testID="home-inbox">
+        <View style={s.inboxIcon}>
+          <Icon name="sparkles" size={18} color={c.brandInk} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <T variant="headline">{data.inbox.length === 1 ? 'A scan is ready to check' : `${data.inbox.length} scans are ready to check`}</T>
+          <T variant="caption" tone="muted">
+            We read it — confirm the dates
+          </T>
+        </View>
+        <Icon name="chevron-right" size={18} color={c.textMuted} />
+      </Press>
+    ) : null;
+
   return (
     <Screen bottomPad={bottom} refreshing={home.isRefetching} onRefresh={() => void home.refetch()} testID="screen-home">
       {isEmpty ? top('Nothing due yet.', 'Every deadline you add lands here, soonest first.') : top(line, sub)}
 
       {!isEmpty ? <WeekRail items={upcoming} overdueCount={data.overdue.length} onDay={(day, items) => setDayOpen({ day, items })} /> : null}
 
-      <PlanCard />
-
-      {showPushBanner ? (
-        <Banner icon="bell-off" message="Reminders are off — you’ll only see deadlines in the app." actionLabel="Turn on" onPress={() => router.push('/settings/notifications')} />
-      ) : null}
-
-      {data.inbox.length > 0 ? (
-        <Press onPress={() => router.push({ pathname: '/scan/[id]', params: { id: data.inbox[0]!.id } })} accessibilityRole="button" style={s.inbox} testID="home-inbox">
-          <View style={s.inboxIcon}>
-            <Icon name="sparkles" size={18} color={c.accentInk} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <T variant="headline">{data.inbox.length === 1 ? 'A scan is ready to check' : `${data.inbox.length} scans are ready to check`}</T>
-            <T variant="caption" tone="muted">
-              We read it — confirm the dates
-            </T>
-          </View>
-          <Icon name="chevron-right" size={18} color={c.textMuted} />
-        </Press>
-      ) : null}
-
       {isEmpty ? (
-        <EmptyHome />
+        <>
+          {inboxRow}
+          <PlanCard />
+          <EmptyHome />
+        </>
       ) : (
         <>
           {data.nextUp ? <NextUpHero item={data.nextUp} onDone={() => markDone(data.nextUp as Item)} busy={pending === data.nextUp.id} /> : null}
+
+          {/* What needs you, after the one thing due next: a scan to check, reminders that are off, the plan. */}
+          {inboxRow}
+
+          {showPushBanner ? (
+            <Banner icon="bell-off" message="Reminders are off — you’ll only see deadlines in the app." actionLabel="Turn on" onPress={() => router.push('/settings/notifications')} />
+          ) : null}
+
+          <PlanCard />
 
           {overdue.length > 0 ? (
             <View>
@@ -212,7 +223,8 @@ const useStyles = makeStyles((c) => ({
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: space.md, paddingTop: space.sm },
   headline: { fontFamily: font.display, fontSize: 32, lineHeight: 37, letterSpacing: -0.8, color: c.text },
   inbox: { flexDirection: 'row', alignItems: 'center', gap: space.md, backgroundColor: c.surface, borderRadius: radius.group, borderWidth: 1, borderColor: c.line, padding: space.md },
-  inboxIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+  // Plum, not marigold: marigold is spent on what you press (Next up's done, the scan button), not on notices.
+  inboxIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: c.brandSoft, alignItems: 'center', justifyContent: 'center' },
   later: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: space.lg, borderRadius: radius.group, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line },
 }));
 
