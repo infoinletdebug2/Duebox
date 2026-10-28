@@ -4,6 +4,7 @@ import { font, makeStyles, radius, space, useColors } from '../theme/tokens';
 import { T } from './Text';
 import { Press } from './Button';
 import { Icon, type IconName } from './Icon';
+import { FieldFocus } from './KeyboardScroll';
 
 /* ── text field ─────────────────────────────────────────────────────────── */
 
@@ -30,6 +31,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, e
   const c = useColors();
   const s = useStyles();
   const tone = useContext(FieldTone);
+  const reveal = useContext(FieldFocus);
   const [focused, setFocused] = useState(false);
   const input = (
       <TextInput
@@ -42,6 +44,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, e
         {...rest}
         onFocus={(e) => {
           setFocused(true);
+          reveal?.();
           rest.onFocus?.(e);
         }}
         onBlur={(e) => {

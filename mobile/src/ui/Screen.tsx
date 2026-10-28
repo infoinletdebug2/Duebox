@@ -1,11 +1,11 @@
 import { RefreshControl, ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useRouter } from 'expo-router';
 import { GUTTER, makeStyles, space, useColors } from '../theme/tokens';
 import { Ambient } from './Ambient';
 import { T } from './Text';
 import { IconButton } from './Button';
+import { KeyboardScroll } from './KeyboardScroll';
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -56,14 +56,7 @@ export function Screen({
     body = <View style={[s.fill, { paddingTop: padTop }, contentStyle]}>{children}</View>;
   } else if (form) {
     body = (
-      <KeyboardAwareScrollView
-        enableOnAndroid
-        extraScrollHeight={24}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[s.content, { paddingTop: padTop, paddingBottom: padBottom }, contentStyle]}
-      >
-        {children}
-      </KeyboardAwareScrollView>
+      <KeyboardScroll contentContainerStyle={[s.content, { paddingTop: padTop, paddingBottom: padBottom }, contentStyle]}>{children}</KeyboardScroll>
     );
   } else {
     body = (
