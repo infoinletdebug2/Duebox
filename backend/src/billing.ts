@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { AppleStore, GoogleStore } from '@xenition/sdk';
+import { AppleStore, GoogleStore, storeOffer } from '@xenition/sdk';
 import type { EntitlementCheck, Purchase } from '@xenition/sdk';
 import { sdk, readEnvVar, env, scoped } from './lib';
 import { maxMembers, proEntitlement, productIds, proScans, trialDays } from './config';
@@ -17,13 +17,12 @@ import { todayIn } from './logic/dates';
  * The household is the subscribed thing: access reads the **owner's**
  * entitlement, so a partner's phone gets exactly what the owner pays for.
  *
- * Three things the SDK's `check()` does not answer yet (see the SDK notes in
- * docs/HANDOFF.md), worked out here from the stored purchase:
- *   - a store free trial is still a 'purchase' to the SDK (isTrial is only
- *     its own server trial) — read from the store payload instead;
- *   - Apple billing grace keeps the purchase 'grace' but its expiry is in the
- *     past, so check() says expired — grace keeps access here;
- *   - old server-trial rows (the soft model) must not unlock anything.
+ * Since SDK 0.2.11 `check()` reports the store's own trial
+ * (trialSource 'store') and keeps Apple billing grace allowed until
+ * gracePeriodExpiresDate. Two rules stay here:
+ *   - old server-trial rows (the soft model) must not unlock anything;
+ *   - a purchase recorded in grace BEFORE 0.2.11 (expiry in the past) still
+ *     keeps access while the store says 'grace'.
  */
 
 export const PRO = (c: Context) => proEntitlement(env(c));
@@ -62,39 +61,16 @@ export function billing(c: Context) {
   return sdk(c).modules.billing;
 }
 
-/* ── reading the store purchase ───────────────────────────────────────────── */
+/* ── reading the store purchase (SDK 0.2.11 storeOffer) ─────────────────── */
 
-/**
- * Is this purchase in the stores' free intro period right now?
- *   Apple: the latest transaction carries offerType 1 (introductory); a
- *          renewal after the trial is a new transaction without it.
- *   Google: the subscription was bought through an offer (the free-trial
- *          offer) and its latest order is still the first one — Play numbers
- *          every renewal order `<first>..N`.
- */
+/** In the stores' free intro period right now (Apple offerType 1 / FREE_TRIAL; Play offerPhase.freeTrial). */
 export function isStoreTrial(purchase: Purchase): boolean {
-  const raw = purchase.raw ?? {};
-  if (purchase.platform === 'apple') {
-    const offerType = Number((raw as { offerType?: unknown }).offerType);
-    const discount = String((raw as { offerDiscountType?: unknown }).offerDiscountType ?? 'FREE_TRIAL');
-    return offerType === 1 && discount === 'FREE_TRIAL';
-  }
-  if (purchase.platform === 'google') {
-    const lines = ((raw as { lineItems?: unknown }).lineItems ?? []) as { offerDetails?: { offerId?: string } }[];
-    const viaOffer = lines.some((line) => Boolean(line.offerDetails?.offerId));
-    const order = String((raw as { latestOrderId?: unknown }).latestOrderId ?? '');
-    return viaOffer && order !== '' && !order.includes('..');
-  }
-  return false;
+  return storeOffer(purchase).isStoreTrial;
 }
 
-/** Will it renew (or, in a trial, convert)? Apple keeps it on the purchase row; Play in the line item. */
+/** Will it renew (or, in a trial, convert)? The store payload first, the row flag otherwise. */
 export function willRenew(purchase: Purchase): boolean {
-  if (purchase.platform === 'google') {
-    const lines = ((purchase.raw as { lineItems?: unknown }).lineItems ?? []) as { autoRenewingPlan?: { autoRenewEnabled?: boolean } }[];
-    if (lines.length > 0) return lines.some((line) => line.autoRenewingPlan?.autoRenewEnabled === true);
-  }
-  return purchase.auto_renewing;
+  return storeOffer(purchase).willRenew ?? purchase.auto_renewing;
 }
 
 export type AccessStatus = 'trial' | 'active' | 'grace' | 'billing_retry' | 'expired' | 'none';
@@ -181,7 +157,7 @@ async function readAccess(c: Context, ownerUserId: string): Promise<Access> {
 
     let status: AccessStatus;
     if (grace) status = 'grace';
-    else if (entitled && purchase && purchase.status === 'active' && isStoreTrial(purchase)) status = 'trial';
+    else if (entitled && (check.trialSource === 'store' || (purchase?.status === 'active' && isStoreTrial(purchase)))) status = 'trial';
     else if (entitled) status = 'active';
     else if (purchase?.status === 'on_hold') status = 'billing_retry';
     else if (purchase) status = 'expired';

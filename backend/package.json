@@ -13,7 +13,7 @@
     "test:api": "bash scripts/api-test.sh"
   },
   "dependencies": {
-    "@xenition/sdk": "github:xenition/node-sdk#0ebd7c096cb5743ee379885387bcd86cb29e5e0e",
+    "@xenition/sdk": "github:xenition/node-sdk#24aec578f4e7636f97dd9d4692ecf28e125f6307",
     "hono": "^4.6.0"
   },
   "devDependencies": {

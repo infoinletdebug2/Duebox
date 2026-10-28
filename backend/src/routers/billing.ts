@@ -2,10 +2,10 @@ import type { Context } from 'hono';
 import { defineRouter } from '@xenition/sdk/hono';
 import { handleAppleNotification, handleGoogleNotification } from '@xenition/sdk';
 import type { RecordPurchaseInput } from '@xenition/sdk';
-import { ok, fail, invalid, jsonBody, userId, parseText } from '../lib';
+import { ok, fail, invalid, jsonBody, userId, parseText, readEnvVar } from '../lib';
 import { PRO, PRODUCT_IDS, TRIAL_DAYS, appleStore, googleStore, billing, forgetAccess, planPayload } from '../billing';
 import { requireHousehold, requireOwner } from '../middleware';
-import { householdRow } from '../services';
+import { householdRow, rawRows } from '../services';
 import { countMilestones } from '../milestones';
 import { handleError } from '../errors';
 
@@ -112,7 +112,18 @@ export const billingRouter = defineRouter({
       const body = await jsonBody(c);
       const signedPayload = typeof body?.signedPayload === 'string' ? body.signedPayload : '';
       if (!signedPayload) return c.json({ ok: false }, 400);
-      const result = await handleAppleNotification({ billing: billing(c), apple: store, signedPayload });
+      const result = await handleAppleNotification({
+        billing: billing(c),
+        apple: store,
+        signedPayload,
+        // Apple's x5c chain must end at Apple Root CA - G3 (SDK 0.2.11).
+        verifySignature: true,
+        resolveAccount: (token) => resolveAccount(c, token),
+      });
+      if (result.reason === 'invalid_signature') {
+        console.warn('apple notification refused: bad signature', result.notificationType);
+        return c.json({ ok: false }, 401);
+      }
       if (result.purchase) await countMilestones(c, result.purchase);
       else if (result.reason === 'unknown_purchase') console.warn('apple notification for a chain no account has verified yet:', result.notificationType);
       return c.json({ ok: true });
@@ -122,13 +133,39 @@ export const billingRouter = defineRouter({
       const store = googleStore(c);
       if (!store) return c.json({ ok: false }, 503);
       const body = await jsonBody(c);
-      const result = await handleGoogleNotification({ billing: billing(c), google: store, body: (body ?? {}) as Record<string, unknown> });
+      const audience = readEnvVar(c, 'PUBSUB_AUDIENCE')?.trim();
+      const serviceAccountEmail = readEnvVar(c, 'PUBSUB_SERVICE_ACCOUNT')?.trim();
+      const result = await handleGoogleNotification({
+        billing: billing(c),
+        google: store,
+        body: (body ?? {}) as Record<string, unknown>,
+        resolveAccount: (token) => resolveAccount(c, token),
+        // On once the push subscription has authentication (docs/PAYWALL.md).
+        verifyPubSub: audience || serviceAccountEmail
+          ? { authorization: c.req.header('authorization'), audience: audience || undefined, serviceAccountEmail: serviceAccountEmail || undefined }
+          : undefined,
+      });
+      if (result.reason === 'invalid_signature') {
+        console.warn('play notification refused: bad Pub/Sub token');
+        return c.json({ ok: false }, 401);
+      }
       if (result.purchase) await countMilestones(c, result.purchase);
       else if (result.reason === 'unknown_purchase') console.warn('play notification for a token no account has verified yet:', result.notificationType);
       return c.json({ ok: true });
     });
   },
 });
+
+/**
+ * The app buys with StoreKit appAccountToken / Play obfuscatedAccountId set
+ * to the account id (mobile/src/billing/store.ts). A store notification for a
+ * chain no account has verified yet (the app died mid-purchase) is matched
+ * through it — but only to an account that exists here.
+ */
+async function resolveAccount(c: Context, token: string): Promise<string | null> {
+  const rows = await rawRows<{ user_id: string }>(c, `SELECT user_id FROM dx__profile WHERE lower(user_id) = lower($1) LIMIT 1`, [token]);
+  return rows[0]?.user_id ?? null;
+}
 
 function storeUnconfigured(c: Context, platform: 'apple' | 'google') {
   return fail(c, 'STORE_UNCONFIGURED', `Subscriptions are not available in this build (${platform} is not configured).`, 503);
