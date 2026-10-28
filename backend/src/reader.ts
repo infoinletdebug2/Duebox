@@ -78,9 +78,7 @@ export async function readDocument(c: Context, pages: ReaderPage[], today: strin
   if (!json) throw new ReadFailed('unreadable');
 
   const candidates = coerceExtraction(json, today);
-  if (candidates.length === 0) {
-    const type = (json as { documentType?: string }).documentType;
-    throw new ReadFailed(type === 'other' ? 'not_document' : 'no_date');
-  }
+  // Nothing dated found. Not "not a document": the reader reads anything, so the only honest answer is "no date".
+  if (candidates.length === 0) throw new ReadFailed('no_date');
   return { candidates, model, ms };
 }
