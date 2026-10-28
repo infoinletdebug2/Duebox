@@ -47,3 +47,8 @@ META_VALUE_CURRENCY=USD
 
 DOC_BUCKET=default
 DOC_URL_TTL=900
+
+# PostHog, the shared fleet project (app=duebox). Write-only public token;
+# src/posthog.ts has it built in, so these only override it.
+POSTHOG_TOKEN=phc_kCdWSEDneUZ7QQrBR6jrKqhabvGEbviJzaCKrqZnDavm
+POSTHOG_HOST=https://us.i.posthog.com
