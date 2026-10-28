@@ -190,6 +190,8 @@ const useStyles = makeStyles((c) => ({
     minHeight: 50,
     borderRadius: radius.input,
     backgroundColor: c.surfaceSunk,
+    borderWidth: 1.5,
+    borderColor: c.line,
     paddingHorizontal: space.lg,
   },
 }));

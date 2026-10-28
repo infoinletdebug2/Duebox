@@ -125,6 +125,8 @@ const useStyles = makeStyles((c) => ({
     minHeight: 48,
     borderRadius: radius.input,
     backgroundColor: c.surfaceSunk,
+    borderWidth: 1.5,
+    borderColor: c.line,
     paddingHorizontal: space.md,
   },
   searchInput: { flex: 1, minWidth: 0, borderWidth: 0, color: c.text, fontFamily: font.body, fontSize: 16, paddingVertical: space.sm },

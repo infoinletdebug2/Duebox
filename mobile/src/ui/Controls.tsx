@@ -261,8 +261,9 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
     fontFamily: font.body,
     fontSize: 16,
+    // A hairline, not 'transparent': in dark the sunk fill is a shade off the ground and the field vanished without it.
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: c.line,
     minWidth: 0,
   },
   raised: { backgroundColor: c.surface, borderColor: c.line, borderWidth: 1.5 },
@@ -284,7 +285,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.surface,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
-  segTrack: { flexDirection: 'row', backgroundColor: c.surfaceSunk, borderRadius: radius.input, padding: 3 },
+  segTrack: { flexDirection: 'row', backgroundColor: c.surfaceSunk, borderRadius: radius.input, padding: 3, borderWidth: 1, borderColor: c.line },
   segItem: { flex: 1, minHeight: 36, alignItems: 'center', justifyContent: 'center', borderRadius: radius.input - 3 },
   segActive: {
     backgroundColor: c.surface,
