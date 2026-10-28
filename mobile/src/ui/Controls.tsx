@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { createContext, forwardRef, useContext, useState } from 'react';
 import { ScrollView, TextInput, View, type TextInputProps, type StyleProp, type ViewStyle } from 'react-native';
 import { font, makeStyles, radius, space, useColors } from '../theme/tokens';
 import { T } from './Text';
@@ -12,18 +12,24 @@ interface FieldProps extends TextInputProps {
   error?: string;
   hint?: string;
   containerStyle?: StyleProp<ViewStyle>;
+  /** Something inside the input's right edge (the password eye). */
+  trailing?: React.ReactNode;
 }
 
+/**
+ * Where a field sits. `sunk` (the default) for fields inside a card;
+ * `raised` for fields straight on the ground (the auth screens), where a sunk
+ * input would barely differ from the page behind it.
+ */
+export const FieldTone = createContext<'sunk' | 'raised'>('sunk');
+
 /** Label above, sunk input, error under (DESIGN-SYSTEM §6). */
-export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, error, hint, containerStyle, style, ...rest }, ref) {
+export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, error, hint, containerStyle, style, trailing, ...rest }, ref) {
   const c = useColors();
   const s = useStyles();
+  const tone = useContext(FieldTone);
   const [focused, setFocused] = useState(false);
-  return (
-    <View style={[{ gap: space.xs }, containerStyle]}>
-      <T variant="caption" tone="muted">
-        {label}
-      </T>
+  const input = (
       <TextInput
         ref={ref}
         placeholderTextColor={c.textFaint}
@@ -39,8 +45,22 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, e
           setFocused(false);
           rest.onBlur?.(e);
         }}
-        style={[s.input, rest.multiline && s.multiline, focused && s.focused, error ? s.errored : null, style]}
+        style={[s.input, tone === 'raised' && s.raised, rest.multiline && s.multiline, trailing ? s.withTrailing : null, focused && s.focused, error ? s.errored : null, style]}
       />
+  );
+  return (
+    <View style={[{ gap: space.xs }, containerStyle]}>
+      <T variant="caption" tone="muted">
+        {label}
+      </T>
+      {trailing ? (
+        <View style={s.inputRow}>
+          {input}
+          <View style={s.trailing}>{trailing}</View>
+        </View>
+      ) : (
+        input
+      )}
       {error ? (
         <T variant="caption" tone="critical">
           {error}
@@ -51,6 +71,36 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, e
         </T>
       ) : null}
     </View>
+  );
+});
+
+/**
+ * A password field with the eye: tap to see what you typed, tap again to hide
+ * it. Starts hidden; the label says what the tap will do.
+ */
+export const PasswordField = forwardRef<TextInput, Omit<FieldProps, 'secureTextEntry' | 'trailing'>>(function PasswordField(props, ref) {
+  const c = useColors();
+  const [shown, setShown] = useState(false);
+  return (
+    <Field
+      ref={ref}
+      {...props}
+      secureTextEntry={!shown}
+      autoCapitalize="none"
+      autoCorrect={false}
+      trailing={
+        <Press
+          onPress={() => setShown((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={shown ? 'Hide password' : 'Show password'}
+          hitSlop={8}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+          testID={props.testID ? `${props.testID}-eye` : undefined}
+        >
+          <Icon name={shown ? 'eye-off' : 'eye'} size={20} color={c.textMuted} />
+        </Press>
+      }
+    />
   );
 });
 
@@ -207,7 +257,11 @@ const useStyles = makeStyles((c) => ({
     borderColor: 'transparent',
     minWidth: 0,
   },
+  raised: { backgroundColor: c.surface, borderColor: c.line, borderWidth: 1.5 },
   multiline: { minHeight: 100, textAlignVertical: 'top' },
+  inputRow: { justifyContent: 'center' },
+  withTrailing: { paddingRight: 52 },
+  trailing: { position: 'absolute', right: 4, top: 0, bottom: 0, justifyContent: 'center' },
   focused: { borderColor: c.accent },
   errored: { borderColor: c.critical },
   chip: {
