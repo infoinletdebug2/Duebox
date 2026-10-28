@@ -1,18 +1,26 @@
 import { View } from 'react-native';
-import { makeStyles, radius, space } from '../theme/tokens';
+import { Image } from 'expo-image';
+import { font, makeStyles, radius, space, useColors } from '../theme/tokens';
 import { Screen, Header } from '../ui/Screen';
 import { T } from '../ui/Text';
+import { Icon } from '../ui/Icon';
+import { FieldTone } from '../ui/Controls';
 import { Mark } from '../ui/artwork';
-import { HeroBanner, type HeroChip, type HeroName } from '../ui/HeroBanner';
+import { HERO, type HeroChip, type HeroName } from '../ui/HeroBanner';
 
 export { Mark };
 
 /**
- * The shape every auth screen shares (visual-system.md, "Auth screens need a
- * shape"): mark → one drawing or none → one line of display type carrying the
- * sentence that matters → the form in a card, so what you fill in is
- * separated from what you read. Always a keyboard-aware scroll view: on a
- * short phone the keyboard leaves ~300pt and the submit must stay reachable.
+ * The shape every auth screen shares: back → the title block (an eyebrow, one
+ * line of display type, one quieter sentence; on sign-in/up a small tile of
+ * the discovery artwork beside it) → the form straight on the page, fields
+ * raised in white so they read as "fill me in". Always a keyboard-aware
+ * scroll view: on a short phone the keyboard leaves ~300pt and the submit
+ * must stay reachable.
+ *
+ * The artwork is a tile, not a banner, on purpose: a 280pt picture above a
+ * form pushed the fields under the fold and made every phone scroll before
+ * typing a letter.
  */
 
 /** Mark + wordmark, the top line of every signed-out screen. */
@@ -32,7 +40,7 @@ interface AuthShellProps {
   lead?: string;
   /** Optional drawing between the brand and the title. */
   art?: React.ReactNode;
-  /** The discovery-style banner: generated art with the title on it (replaces `art`). */
+  /** The discovery artwork as a small tile beside the title, an eyebrow above it, a few facts under it (replaces `art`). */
   hero?: { art: HeroName; eyebrow?: string; chips?: HeroChip[] };
   /** Show a back chevron (everything but welcome). */
   back?: boolean;
@@ -46,12 +54,37 @@ interface AuthShellProps {
 
 export function AuthShell({ title, lead, art, hero, back = true, onBack, children, below, testID }: AuthShellProps) {
   const s = useStyles();
+  const c = useColors();
   return (
     <Screen form header={back ? <Header onBack={onBack} /> : undefined} testID={testID}>
       {hero ? (
-        <View style={s.top}>
-          <Brand />
-          <HeroBanner art={hero.art} eyebrow={hero.eyebrow} title={title} lead={lead} chips={hero.chips} />
+        <View style={s.heroTop}>
+          <View style={s.titleRow}>
+            <View style={{ flex: 1, gap: space.xs }}>
+              {hero.eyebrow ? (
+                <T variant="caption" tone="brand" style={{ fontFamily: font.bold }}>
+                  {hero.eyebrow}
+                </T>
+              ) : null}
+              <T variant="display" accessibilityRole="header">
+                {title}
+              </T>
+            </View>
+            <Image source={HERO[hero.art]} style={s.tile} contentFit="cover" accessibilityElementsHidden importantForAccessibility="no" />
+          </View>
+          {lead ? <T tone="muted">{lead}</T> : null}
+          {hero.chips && hero.chips.length > 0 ? (
+            <View style={s.chips}>
+              {hero.chips.map((chip) => (
+                <View key={chip.label} style={s.chip}>
+                  <Icon name={chip.icon} size={14} color={c.brandInk} strokeWidth={2.2} />
+                  <T variant="caption" style={{ fontFamily: font.semibold }}>
+                    {chip.label}
+                  </T>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       ) : (
         <View style={s.top}>
@@ -65,7 +98,9 @@ export function AuthShell({ title, lead, art, hero, back = true, onBack, childre
           </View>
         </View>
       )}
-      <View style={s.card}>{children}</View>
+      <FieldTone.Provider value="raised">
+        <View style={s.form}>{children}</View>
+      </FieldTone.Provider>
       {below ? <View style={s.below}>{below}</View> : null}
     </Screen>
   );
@@ -91,6 +126,20 @@ export function AuthLink({ lead, label, onPress, testID }: { lead?: string; labe
   );
 }
 
+/** "or with email" between the Apple/Google buttons and the form. */
+export function OrDivider({ label = 'or with email' }: { label?: string }) {
+  const c = useColors();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+      <T variant="caption" tone="faint">
+        {label}
+      </T>
+      <View style={{ flex: 1, height: 1, backgroundColor: c.line }} />
+    </View>
+  );
+}
+
 /** A server message that names no field — shown once, above the submit. */
 export function FormMessage({ message, tone = 'critical' }: { message: string | null | undefined; tone?: 'critical' | 'good' | 'muted' }) {
   if (!message) return null;
@@ -104,13 +153,19 @@ export function FormMessage({ message, tone = 'critical' }: { message: string | 
 const useStyles = makeStyles((c) => ({
   top: { gap: space.xl, paddingTop: space.lg },
   art: { alignItems: 'center', paddingVertical: space.sm },
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: c.line,
-    padding: space.xl,
-    gap: space.lg,
+  heroTop: { gap: space.md, paddingTop: space.xs },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  tile: { width: 76, height: 76, borderRadius: radius.group, borderCurve: 'continuous', backgroundColor: '#1E1229' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.chip,
+    backgroundColor: c.brandSoft,
   },
+  form: { gap: space.lg },
   below: { gap: space.md, alignItems: 'center' },
 }));

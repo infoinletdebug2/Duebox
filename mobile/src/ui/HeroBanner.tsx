@@ -18,7 +18,7 @@ import { Icon, type IconName } from './Icon';
  * Artwork: assets/hero/*.jpg (prompts in assets/source/PROMPT.md).
  */
 
-const HERO = {
+export const HERO = {
   auth: require('../../assets/hero/auth.jpg'),
   account: require('../../assets/hero/account.jpg'),
   export: require('../../assets/hero/export.jpg'),
