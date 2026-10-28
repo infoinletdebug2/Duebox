@@ -50,15 +50,14 @@ export const PRODUCT_IDS = {
   yearly: str(process.env.EXPO_PUBLIC_PRO_YEARLY_ID, 'duebox_pro_yearly'),
 } as const;
 
-/** The store's introductory offer on yearly. Copy only — the store decides. */
-export const TRIAL_DAYS = num(process.env.EXPO_PUBLIC_TRIAL_DAYS, 7);
+/**
+ * The stores' free intro offer on YEARLY (card upfront). Copy fallback only:
+ * the paywall reads the real length from the store product when it can.
+ */
+export const TRIAL_DAYS = num(process.env.EXPO_PUBLIC_TRIAL_DAYS, 3);
 
-/** A label, not a calculation: prices are localised store strings. 0 hides it. */
-export const YEARLY_SAVING_PERCENT = num(process.env.EXPO_PUBLIC_YEARLY_SAVING_PERCENT, 41);
-
-/** Free-tier numbers for copy before the server answers (the server decides). */
-export const FREE_OPEN_ITEMS = num(process.env.EXPO_PUBLIC_FREE_OPEN_ITEMS, 5);
-export const FREE_SCANS = num(process.env.EXPO_PUBLIC_FREE_SCANS, 3);
+/** A label, not a calculation: 12 × $7.99 vs $39.99. 0 hides it. */
+export const YEARLY_SAVING_PERCENT = num(process.env.EXPO_PUBLIC_YEARLY_SAVING_PERCENT, 58);
 
 export const SUPPORT_EMAIL = str(process.env.EXPO_PUBLIC_SUPPORT_EMAIL, 'contact@infoinlet.com');
 export const WEBSITE_URL = str(process.env.EXPO_PUBLIC_WEBSITE_URL, 'https://duebox.xenition.com');
@@ -73,18 +72,6 @@ export const EAS_PROJECT_ID = str(
 
 /** Bump when the privacy text changes materially (shown on the policy). */
 export const PRIVACY_EFFECTIVE = '2026-10-04';
-
-/**
- * The one-time welcome offer after setup (app/offer.tsx): the same Pro as
- * separately priced store products. Must match backend OFFER_*_ID byte for
- * byte. OFFER_PERCENT is a LABEL for the copy, never used to compute a price;
- * 0 turns the discount wording off.
- */
-export const OFFER_IDS = {
-  monthly: str(process.env.EXPO_PUBLIC_OFFER_MONTHLY_ID, 'duebox_pro_monthly_offer'),
-  yearly: str(process.env.EXPO_PUBLIC_OFFER_YEARLY_ID, 'duebox_pro_yearly_offer'),
-} as const;
-export const OFFER_PERCENT = num(process.env.EXPO_PUBLIC_OFFER_PERCENT, 20);
 
 /**
  * Meta ads measurement. Both empty means measurement is off (the shipped
@@ -115,6 +102,6 @@ export const POSTHOG_HOST = str(process.env.EXPO_PUBLIC_POSTHOG_HOST, 'https://u
  * through the store at the store's own price. Must match the store listing.
  */
 export const LIST_PRICE = {
-  monthly: num(process.env.EXPO_PUBLIC_LIST_PRICE_MONTHLY, 4.99),
-  yearly: num(process.env.EXPO_PUBLIC_LIST_PRICE_YEARLY, 34.99),
+  monthly: num(process.env.EXPO_PUBLIC_LIST_PRICE_MONTHLY, 7.99),
+  yearly: num(process.env.EXPO_PUBLIC_LIST_PRICE_YEARLY, 39.99),
 } as const;

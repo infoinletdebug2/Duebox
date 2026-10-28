@@ -10,12 +10,12 @@ import { useColors } from '../src/theme/tokens';
  *   a phone that has never seen Duebox → the discovery pitch;
  *   no session → welcome;
  *   signed in, setup not done (owner) → the two-tap setup;
- *   setup done, welcome offer not seen yet → the one-time offer;
+ *   set up but not subscribed → the paywall (hard paywall, no way past it);
  *   otherwise → Home.
  * Email verification is offered right after sign-up and never blocks the app.
  */
 export default function Index() {
-  const { session, needsSetup, needsOffer } = useAuth();
+  const { session, needsSetup, needsSubscription } = useAuth();
   const c = useColors();
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
@@ -25,7 +25,7 @@ export default function Index() {
 
   if (session) {
     if (needsSetup) return <Redirect href="/setup" />;
-    if (needsOffer) return <Redirect href="/offer" />;
+    if (needsSubscription) return <Redirect href="/paywall" />;
     return <Redirect href="/(tabs)/home" />;
   }
   if (onboarded === null) return <View style={{ flex: 1, backgroundColor: c.brand }} />;

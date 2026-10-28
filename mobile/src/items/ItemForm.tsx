@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { useAuth } from '../auth/context';
-import { usePlanGate } from '../billing/gate';
 import { makeStyles, radius, space, useColors } from '../theme/tokens';
 import { T } from '../ui/Text';
 import { Press, tap } from '../ui/Button';
@@ -14,7 +12,6 @@ import {
   ALL_OFFSETS,
   CATEGORIES,
   CATEGORY,
-  FREE_OFFSETS,
   moneyInput,
   offsetsLabel,
   parseMoney,
@@ -45,7 +42,8 @@ export interface FormState {
   assigneeId: string | null;
 }
 
-export function emptyForm(isPro: boolean, category: Category = 'other'): FormState {
+/** `_isPro` is kept for callers; behind the hard paywall everyone filling this in is subscribed. */
+export function emptyForm(_isPro: boolean, category: Category = 'other'): FormState {
   return {
     title: '',
     dueDate: null,
@@ -57,7 +55,7 @@ export function emptyForm(isPro: boolean, category: Category = 'other'): FormSta
     notes: '',
     repeat: 'none',
     repeatYears: 5,
-    offsets: isPro ? PRO_DEFAULT_OFFSETS : FREE_OFFSETS,
+    offsets: PRO_DEFAULT_OFFSETS,
     assigneeId: null,
   };
 }
@@ -217,9 +215,6 @@ function MoreDetails({
   compact?: boolean;
   aiAmount?: boolean;
 }) {
-  const { isPro } = useAuth();
-  const { openPaywall } = usePlanGate();
-
   return (
     <View style={{ gap: space.lg }}>
       <View style={{ gap: space.sm }}>
@@ -308,11 +303,10 @@ function MoreDetails({
         <ChoiceGrid
           columns={6}
           role="checkbox"
-          options={ALL_OFFSETS.map((o) => ({ key: String(o), label: `${o}d`, locked: !isPro && o !== 7 }))}
+          options={ALL_OFFSETS.map((o) => ({ key: String(o), label: `${o}d` }))}
           isOn={(k) => value.offsets.includes(Number(k) as Offset)}
           onPress={(k) => {
             const o = Number(k) as Offset;
-            if (!isPro && o !== 7) return openPaywall('custom_reminders');
             tap();
             const on = value.offsets.includes(o);
             const next = on ? value.offsets.filter((x) => x !== o) : [...value.offsets, o].sort((a, b) => b - a);
@@ -320,11 +314,6 @@ function MoreDetails({
           }}
           testIDPrefix="offset-"
         />
-        {!isPro ? (
-          <T variant="caption" tone="faint">
-            Free reminds you 7 days before and on the day. Pro lets you choose.
-          </T>
-        ) : null}
       </View>
 
       {members && members.length > 1 ? (

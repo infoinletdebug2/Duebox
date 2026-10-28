@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { AppState, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -68,8 +68,16 @@ export default function RootLayout() {
 /** Routes a signed-out person may stay on. */
 const PUBLIC = new Set(['(auth)', 'auth', 'legal', 'discover']);
 
+/**
+ * Routes open while the household is NOT subscribed (hard paywall): the
+ * paywall, legal pages, settings — so sign-out, export and account deletion
+ * stay reachable (App Review 5.1.1(v)) — setup, the email code, and joining a
+ * household (which may be a subscribed one).
+ */
+const UNLOCKED = new Set(['paywall', 'legal', 'settings', 'setup', '(auth)', 'auth', 'join', 'discover']);
+
 function AppShell() {
-  const { loading, session, household, me } = useAuth();
+  const { loading, session, household, me, needsSubscription, refresh } = useAuth();
   const c = useColors();
   const router = useRouter();
   const segments = useSegments();
@@ -81,6 +89,28 @@ function AppShell() {
     if (PUBLIC.has(segments[0] ?? '')) return;
     router.replace('/');
   }, [loading, session, segments, router]);
+
+  // Hard paywall: set up but not subscribed → the paywall, from anywhere but
+  // UNLOCKED. Waits for the plan (loading) so a subscriber never sees it flash.
+  useEffect(() => {
+    if (loading || !session || !needsSubscription) return;
+    if (UNLOCKED.has(segments[0] ?? '')) return;
+    router.replace('/paywall');
+  }, [loading, session, needsSubscription, segments, router]);
+
+  // Re-read the plan whenever the app comes back: a trial that ended, a
+  // renewal, or a subscription bought in the store's own settings. At most
+  // once every 10 seconds.
+  const lastRead = useRef(0);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active' || !session) return;
+      if (Date.now() - lastRead.current < 10_000) return;
+      lastRead.current = Date.now();
+      void refresh();
+    });
+    return () => sub.remove();
+  }, [session, refresh]);
 
   useEffect(() => {
     if (!loading) void SplashScreen.hideAsync().catch(() => undefined);
@@ -136,12 +166,12 @@ function AppShell() {
         <Stack.Screen name="index" />
         <Stack.Screen name="discover" options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="setup" options={{ gestureEnabled: false, animation: 'fade' }} />
-        <Stack.Screen name="offer" options={{ gestureEnabled: false, animation: 'fade' }} />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="scan/index" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="item/new" options={{ animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="paywall" options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+        {/* Hard paywall: not a modal, no swipe away. */}
+        <Stack.Screen name="paywall" options={{ animation: 'fade', gestureEnabled: false }} />
         <Stack.Screen name="notifications-permission" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
       </Stack>
       <ReviewPrompt />

@@ -38,23 +38,19 @@ export default function Settings() {
     <Screen bottomPad={bottom} testID="screen-settings">
       <PageTitle title="Settings" />
 
-      <Press onPress={() => router.push(isPro ? '/settings/subscription' : { pathname: '/paywall', params: { reason: 'default' } })} accessibilityRole="button" testID="settings-plan">
+      <Press onPress={() => router.push(isPro ? '/settings/subscription' : '/paywall')} accessibilityRole="button" testID="settings-plan">
         <View style={s.planCard}>
           <View style={{ flex: 1, gap: 4 }}>
             <T variant="micro" style={{ color: c.onBrandMuted }}>
               {household?.name ?? 'Your home'}
             </T>
             <T variant="title" style={{ color: c.onBrand }}>
-              {isPro ? (plan?.isTrial ? 'Duebox Pro · trial' : 'Duebox Pro') : 'Free plan'}
+              {plan?.isTrial ? 'Duebox Pro · free trial' : 'Duebox Pro'}
             </T>
             <T variant="caption" style={{ color: c.onBrandMuted }}>
-              {isPro
-                ? plan?.isTrial && plan.trialEndsAt
-                  ? `Trial ends ${new Date(plan.trialEndsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} · then Free unless you subscribe`
-                  : `Unlimited deadlines · ${plan?.limits.scansPerMonth ?? 100} scans a month for your household`
-                : plan
-                  ? `${plan.usage.openItems} of ${plan.limits.openItems ?? '∞'} deadlines · ${plan.usage.scansThisMonth} of ${plan.limits.scansPerMonth} scans this month`
-                  : 'Up to 5 deadlines · 3 scans a month'}
+              {plan?.isTrial && plan.trialEndsAt
+                ? `Free trial until ${new Date(plan.trialEndsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`
+                : `Unlimited deadlines · ${plan?.limits.scansPerMonth ?? 100} reads a month for your household`}
             </T>
           </View>
           {isPro ? (
@@ -98,7 +94,7 @@ export default function Settings() {
           onPress={() => router.push('/settings/household')}
           testID="settings-household"
         />
-        <ListRow icon="crown" title="Subscription" value={isPro ? (plan?.isTrial ? 'Pro trial' : 'Pro') : 'Free'} onPress={() => router.push('/settings/subscription')} />
+        <ListRow icon="crown" title="Subscription" value={plan?.isTrial ? 'Free trial' : plan?.status === 'grace' ? 'Payment problem' : 'Pro'} onPress={() => router.push('/settings/subscription')} />
       </Group>
 
       <Group title="Account">

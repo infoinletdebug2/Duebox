@@ -51,21 +51,32 @@ export interface Household {
   focus: Category[];
 }
 
-export type GateReason = 'item_limit' | 'scan_limit' | 'household' | 'custom_reminders';
+/** 402 reasons (CONTRACT §0). Hard paywall: one gate, plus the AI-read ceiling (429). */
+export type GateReason = 'subscription_required' | 'scan_limit';
 
+export type PlanStatus = 'trial' | 'active' | 'grace' | 'billing_retry' | 'expired' | 'none';
+
+/**
+ * The household's subscription (the owner's). Hard paywall: `entitled` is the
+ * one field a screen branches on — false means the paywall, nothing else.
+ */
 export interface Plan {
-  tier: 'free' | 'pro';
-  /** `trial`: the 7-day Pro trial every household gets after setup. */
-  source: 'store' | 'trial' | 'none';
+  entitled: boolean;
+  status: PlanStatus;
+  /** In the stores' free intro period (yearly, card upfront). */
   isTrial: boolean;
-  trialDays: number;
+  /** When the trial ends and the first charge lands. */
   trialEndsAt: string | null;
-  /** This account has had its trial (running or over). */
-  trialUsed: boolean;
   renewsAt: string | null;
   expiresAt: string | null;
-  /** `openItems: null` = unlimited. */
-  limits: { openItems: number | null; scansPerMonth: number; members: number };
+  willRenew: boolean;
+  productId: string | null;
+  period: 'monthly' | 'yearly' | null;
+  platform: 'apple' | 'google' | null;
+  /** Never bought anything: the store's free trial may be offered. */
+  trialEligible: boolean;
+  trialDays: number;
+  limits: { scansPerMonth: number; members: number };
   usage: { openItems: number; scansThisMonth: number; month: string };
 }
 

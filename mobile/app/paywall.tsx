@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { paywallViewed } from '../src/lib/analytics';
 import { Linking, Platform, ScrollView, View } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../src/auth/context';
 import { messageOf } from '../src/api/client';
 import { invalidateItems } from '../src/api/hooks';
 import { disconnect, isAvailable, loadPlans, purchase, PurchaseCancelled, restore, type StorePlan } from '../src/billing/store';
-import { FREE_OPEN_ITEMS, FREE_SCANS, TRIAL_DAYS, YEARLY_SAVING_PERCENT } from '../src/config';
+import { YEARLY_SAVING_PERCENT } from '../src/config';
 import { font, GUTTER, makeStyles, radius, space, useColors } from '../src/theme/tokens';
 import { T } from '../src/ui/Text';
 import { Button, IconButton, Press, tap } from '../src/ui/Button';
@@ -16,34 +16,41 @@ import { Icon, type IconName } from '../src/ui/Icon';
 import { Banner, Skeleton } from '../src/ui/Feedback';
 import { useToast } from '../src/ui/Sheet';
 import { RemindArt } from '../src/ui/artwork';
-import type { GateReason } from '../src/types';
 
 /**
- * PAYWALL (SCREENS #11, FR-B4, FR-B5, store-readiness.md).
+ * PAYWALL (SCREENS #11, FR-B4, FR-B5, store-readiness.md) — a HARD paywall,
+ * the same rules as the live Meld apps:
  *
- * Opens only at a real limit, and leads with the OUTCOME that limit blocked
- * (design.md §27). Prices are the store's own strings, never ours. Restore,
- * Terms, Privacy and the auto-renew + trial disclosure are always on screen.
- * Nothing here grants anything: `/billing/verify` answers, and only that
- * answer goes into auth.
+ *   - It is the only way past setup, and where a lapsed household lands. No
+ *     close button, no swipe away (the root layout keeps everything but
+ *     legal, settings and setup behind it). The ways out are subscribe,
+ *     restore, sign out, and Settings — where export and account deletion
+ *     live (App Review 5.1.1(v)).
+ *   - Yearly is preselected and carries the stores' free intro offer
+ *     (3 days, card upfront). "Free" is said ONLY when the store returns that
+ *     offer for this store account AND the server says this account has never
+ *     bought — otherwise the button says Subscribe. The billed price is the
+ *     most prominent price on screen (Apple 3.1.2).
+ *   - Prices and trial length are the store's own, never ours. Restore,
+ *     Terms, Privacy and the auto-renew + trial disclosure are always on
+ *     screen. Nothing here grants anything: `/billing/verify` answers.
  */
 
 type StoreState = { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'ready'; plans: StorePlan[] } | { kind: 'error'; message: string };
 
-const HEADLINE: Record<GateReason | 'default', { title: string; lead: string }> = {
-  item_limit: { title: 'Track everything with a deadline', lead: `You’ve used your ${FREE_OPEN_ITEMS} free deadlines. Pro keeps every renewal, bill and form in one place.` },
-  scan_limit: { title: 'Let Duebox read every letter', lead: `You’ve used this month’s ${FREE_SCANS} free scans. Pro reads up to 100 a month for you.` },
-  household: { title: 'Share it with your household', lead: 'Invite up to 4 people. Assign who handles what, and everyone gets their own reminders.' },
-  custom_reminders: { title: 'Get reminded your way', lead: 'Choose 60, 30, 14, 7, 3 or 1 days ahead — per item.' },
-  default: { title: 'Never miss a deadline again', lead: 'One avoided late fee pays for a year of Duebox Pro.' },
-};
-
 const BENEFITS: { icon: IconName; title: string; note: string }[] = [
-  { icon: 'inbox', title: 'Unlimited deadlines', note: `Free keeps ${FREE_OPEN_ITEMS} open at a time` },
-  { icon: 'scan', title: '100 scans a month', note: 'Snap it, we read the date' },
-  { icon: 'alarm', title: 'Reminders your way', note: '30, 7 and 1 days ahead — or pick your own' },
+  { icon: 'scan', title: 'Snap a letter, get the date', note: 'Duebox reads it and shows you where the date came from' },
+  { icon: 'alarm', title: 'Reminded before — not on the day', note: '30, 7 and 1 days ahead, or your own timing' },
+  { icon: 'inbox', title: 'Every deadline in one place', note: 'Renewals, bills, forms, free trials — unlimited' },
   { icon: 'users', title: 'Your whole household', note: 'Up to 5 people, one subscription' },
 ];
+
+const storeName = Platform.OS === 'android' ? 'Google Play' : 'App Store';
+const accountName = Platform.OS === 'android' ? 'Google Play' : 'Apple ID';
+
+function longDate(iso: string | null | undefined): string {
+  return iso ? new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
+}
 
 export default function Paywall() {
   const router = useRouter();
@@ -52,12 +59,8 @@ export default function Paywall() {
   const insets = useSafeAreaInsets();
   const c = useColors();
   const s = useStyles();
-  const params = useLocalSearchParams<{ reason?: string }>();
-  const reason = (params.reason ?? 'default') as GateReason | 'default';
-  const { isOwner, setPlan, plan } = useAuth();
-  // Subscribed = a store subscription. A household on its free Pro trial still
-  // sees the plans, so it can keep Pro when the trial ends.
-  const isPro = plan?.source === 'store' && plan.tier === 'pro';
+  const { isOwner, setPlan, plan, me, signOut, refresh } = useAuth();
+  const entitled = plan?.entitled === true;
   const [store, setStore] = useState<StoreState>({ kind: 'loading' });
   const [selected, setSelected] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
@@ -81,29 +84,36 @@ export default function Paywall() {
   }, []);
 
   useEffect(() => {
-    if (!isPro) paywallViewed(reason);
+    // Re-read the plan on arrival: a renewal or a store-side purchase may
+    // already have happened, and then this screen should stand aside.
+    void refresh();
+    if (!entitled) paywallViewed(plan?.status === 'none' || !plan ? 'onboarding' : `lapsed_${plan.status}`);
     void load();
     return () => {
       void disconnect();
     };
-  }, [load]);
+    // Once per visit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const close = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/');
-  };
+  const enter = () => router.replace('/(tabs)/home');
 
   const buy = async () => {
-    if (!selected) return;
+    const chosen = store.kind === 'ready' ? store.plans.find((p) => p.productId === selected) : undefined;
+    if (!chosen) return;
     setBuying(true);
     setError(null);
     try {
-      const next = await purchase(selected);
+      const next = await purchase(chosen.productId, { accountId: me?.user.id ?? null, offerToken: chosen.offerToken });
       setPlan(next);
       invalidateItems(qc);
-      tap('success');
-      toast({ message: 'Welcome to Duebox Pro. Thank you.' });
-      close();
+      if (next.entitled) {
+        tap('success');
+        toast({ message: next.isTrial ? 'Your free trial has started. Welcome to Duebox.' : 'Welcome to Duebox. Thank you.' });
+        enter();
+      } else {
+        setError('The store hasn’t confirmed this purchase yet. If you were charged, tap Restore purchases.');
+      }
     } catch (failure) {
       if (!(failure instanceof PurchaseCancelled)) setError(messageOf(failure));
     } finally {
@@ -116,21 +126,21 @@ export default function Paywall() {
     setError(null);
     try {
       if (store.kind === 'unavailable') {
-        toast({ message: 'Restoring needs the App Store or Google Play version of Duebox.' });
+        toast({ message: `Restoring needs the ${storeName} version of Duebox.` });
         return;
       }
       const next = await restore();
       if (!next) {
-        toast({ message: 'No Duebox subscription found on this store account.' });
+        toast({ message: `No Duebox subscription found on this ${accountName}.` });
         return;
       }
       setPlan(next);
       invalidateItems(qc);
-      if (next.tier === 'pro') {
+      if (next.entitled) {
         toast({ message: 'Your subscription is restored.' });
-        close();
+        enter();
       } else {
-        toast({ message: 'We found a past purchase, but it has ended.' });
+        toast({ message: 'We found a past subscription, but it has ended.' });
       }
     } catch (failure) {
       setError(messageOf(failure));
@@ -141,17 +151,25 @@ export default function Paywall() {
 
   const manage = () => {
     const url = Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions';
-    void Linking.openURL(url).catch(() => toast({ message: 'Open your store account’s Subscriptions page to manage Duebox.' }));
+    void Linking.openURL(url).catch(() => toast({ message: `Open Subscriptions in your ${storeName} account to manage Duebox.` }));
   };
 
-  const head = isPro
-    ? { title: 'You’re on Duebox Pro', lead: 'Thank you. Everything is unlocked for everyone in your household.' }
-    : plan?.isTrial && reason === 'default'
-      ? { title: 'Keep Pro after your trial', lead: 'Everything stays unlocked: unlimited deadlines, 100 scans a month, your household together.' }
-      : HEADLINE[reason] ?? HEADLINE.default;
   const selectedPlan = store.kind === 'ready' ? store.plans.find((p) => p.productId === selected) : undefined;
-  const isYearly = selectedPlan?.period === 'yearly';
-  const showPlans = !isPro && isOwner && store.kind === 'ready' && store.plans.length > 0;
+  // "Free" needs both: the store offers it to this store account, and this
+  // Duebox account has never bought (the server's answer).
+  const trialFor = (p: StorePlan | undefined) => (p?.trial && plan?.trialEligible !== false ? p.trial : null);
+  const trial = trialFor(selectedPlan);
+  const showPlans = !entitled && isOwner && store.kind === 'ready' && store.plans.length > 0;
+
+  const head = entitled
+    ? { title: 'You’re on Duebox Pro', lead: plan?.isTrial ? `Your free trial runs until ${longDate(plan.trialEndsAt)}.` : 'Everything is unlocked for everyone in your household.' }
+    : !isOwner
+      ? { title: 'This household isn’t subscribed', lead: 'Your deadlines are safe. Ask the person who set up Duebox to subscribe — one plan covers everyone.' }
+      : plan?.status === 'billing_retry'
+        ? { title: 'There’s a problem with your payment', lead: `Update your payment method in your ${storeName} account and Duebox opens again — your deadlines are all still here.` }
+        : plan?.status === 'expired'
+          ? { title: 'Your subscription has ended', lead: 'Renew to get your reminders back. Every deadline you saved is still here, waiting.' }
+          : { title: 'Never miss a deadline again', lead: 'One avoided late fee pays for a year of Duebox.' };
 
   return (
     <View style={s.root} testID="screen-paywall">
@@ -164,10 +182,11 @@ export default function Paywall() {
                 Duebox Pro
               </T>
             </View>
-            <IconButton icon="x" label="Close" tone="brand" onPress={close} />
+            {/* Not a close button: the way to sign-out, export and account deletion. */}
+            <IconButton icon="settings" label="Account settings" tone="brand" onPress={() => router.push('/settings/account')} />
           </View>
           <View style={{ alignItems: 'center' }}>
-            <RemindArt size={190} />
+            <RemindArt size={170} />
           </View>
           <T variant="display" style={{ color: c.onBrand }} accessibilityRole="header">
             {head.title}
@@ -176,7 +195,7 @@ export default function Paywall() {
         </View>
 
         <View style={s.body}>
-          {!isPro ? (
+          {!entitled ? (
             <View style={s.benefits}>
               {BENEFITS.map((b) => (
                 <View key={b.title} style={s.benefit}>
@@ -194,17 +213,20 @@ export default function Paywall() {
             </View>
           ) : null}
 
-          {isPro ? (
+          {entitled ? (
             <View style={{ gap: space.sm }}>
               {plan?.renewsAt ? (
                 <T tone="muted" align="center">
-                  Renews {new Date(plan.renewsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  Renews {longDate(plan.renewsAt)}
                 </T>
               ) : null}
+              <Button label="Open Duebox" onPress={enter} testID="paywall-enter" />
               <Button label="Manage subscription" tone="secondary" onPress={manage} testID="paywall-manage" />
             </View>
           ) : !isOwner ? (
-            <Banner icon="users" message="Only the household owner can subscribe. One plan covers everyone in your household." />
+            <Banner icon="users" message="Only the person who set up this household can subscribe. One plan covers everyone in it." />
+          ) : plan?.status === 'billing_retry' ? (
+            <Button label="Update payment method" onPress={manage} testID="paywall-manage" />
           ) : store.kind === 'loading' ? (
             <View style={{ gap: space.sm }}>
               <Skeleton height={84} style={{ borderRadius: radius.group }} />
@@ -224,11 +246,9 @@ export default function Paywall() {
             </View>
           ) : (
             <View style={{ gap: space.sm }} accessibilityRole="radiogroup">
-              {[...store.plans]
-                .sort((a, b) => (a.period === 'yearly' ? -1 : b.period === 'yearly' ? 1 : 0))
-                .map((p) => (
-                  <PlanOption key={p.productId} plan={p} selected={p.productId === selected} onPress={() => setSelected(p.productId)} />
-                ))}
+              {store.plans.map((p) => (
+                <PlanOption key={p.productId} plan={p} trialDays={trialFor(p)?.days ?? null} selected={p.productId === selected} onPress={() => setSelected(p.productId)} />
+              ))}
             </View>
           )}
 
@@ -236,15 +256,15 @@ export default function Paywall() {
             <Button label="Restore purchases" tone="quiet" small full={false} loading={restoring} disabled={buying} onPress={() => void doRestore()} testID="paywall-restore" />
             <Button label="Terms" tone="quiet" small full={false} onPress={() => router.push('/legal/terms')} />
             <Button label="Privacy" tone="quiet" small full={false} onPress={() => router.push('/legal/privacy')} />
+            <Button label="Sign out" tone="quiet" small full={false} onPress={() => void signOut()} testID="paywall-sign-out" />
           </View>
-          <T variant="callout" tone="muted" align="center">
-            Your deadlines stay yours — view, export and delete them anytime, subscribed or not.
-          </T>
           <T variant="caption" tone="faint" align="center">
-            Duebox Pro is an auto-renewing subscription. Payment is charged to your {Platform.OS === 'android' ? 'Google Play' : 'Apple ID'} account when you confirm. It renews
-            automatically at the same price each period unless you cancel at least 24 hours before the period ends. Manage or cancel anytime in your{' '}
-            {Platform.OS === 'android' ? 'Google Play' : 'App Store'} account settings — deleting the app doesn’t cancel it. If the yearly plan offers a {TRIAL_DAYS}-day free trial,
-            you won’t be charged until it ends, and you can cancel before then at no cost.
+            Duebox Pro is an auto-renewing subscription: {selectedPlan?.price ?? 'the price shown'} per {selectedPlan?.period === 'monthly' ? 'month' : 'year'}.
+            {trial
+              ? ` Your ${trial.days}-day free trial starts today. When it ends, payment is charged to your ${accountName} account unless you cancel at least 24 hours before the trial ends.`
+              : ` Payment is charged to your ${accountName} account when you confirm.`}{' '}
+            It renews automatically at the same price each period unless you cancel at least 24 hours before the period ends. Manage or cancel anytime in your {storeName} account
+            settings — deleting the app doesn’t cancel it.
           </T>
         </View>
       </ScrollView>
@@ -257,14 +277,16 @@ export default function Paywall() {
             </T>
           ) : null}
           <Button
-            label={isYearly ? `Start ${TRIAL_DAYS}-day free trial` : 'Subscribe'}
+            label={trial ? `Start ${trial.days}-day free trial` : 'Subscribe'}
             onPress={() => void buy()}
             loading={buying}
             disabled={!selected || restoring}
             testID="paywall-continue"
           />
           <T variant="caption" tone="muted" align="center">
-            {isYearly ? `Then ${selectedPlan?.price ?? ''} a year. Cancel anytime.` : `${selectedPlan?.price ?? ''} a month. Cancel anytime.`}
+            {trial
+              ? `${trial.days} days free, then ${selectedPlan?.price ?? ''} a year. Cancel anytime.`
+              : `${selectedPlan?.price ?? ''} a ${selectedPlan?.period === 'monthly' ? 'month' : 'year'}. Cancel anytime.`}
           </T>
         </View>
       ) : null}
@@ -272,11 +294,11 @@ export default function Paywall() {
   );
 }
 
-function PlanOption({ plan, selected, onPress }: { plan: StorePlan; selected: boolean; onPress: () => void }) {
+function PlanOption({ plan, trialDays, selected, onPress }: { plan: StorePlan; trialDays: number | null; selected: boolean; onPress: () => void }) {
   const c = useColors();
   const s = useStyles();
   const yearly = plan.period === 'yearly';
-  const badge = yearly && YEARLY_SAVING_PERCENT > 0 ? `Save ${YEARLY_SAVING_PERCENT}%` : null;
+  const badge = yearly ? (trialDays ? `${trialDays} days free` : YEARLY_SAVING_PERCENT > 0 ? `Save ${YEARLY_SAVING_PERCENT}%` : null) : null;
   return (
     <Press
       onPress={() => {
@@ -302,7 +324,7 @@ function PlanOption({ plan, selected, onPress }: { plan: StorePlan; selected: bo
           ) : null}
         </View>
         <T variant="caption" tone="muted">
-          {yearly ? `${TRIAL_DAYS} days free, then billed yearly` : 'Billed every month'}
+          {yearly ? (trialDays ? `${trialDays} days free, then ${plan.price}/year` : 'Billed once a year') : 'Billed every month'}
         </T>
       </View>
       <View style={{ alignItems: 'flex-end' }}>

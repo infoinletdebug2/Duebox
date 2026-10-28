@@ -27,8 +27,8 @@ interface AuthValue {
   isOwner: boolean;
   /** Signed in, owner, two-tap setup not done yet → /setup. */
   needsSetup: boolean;
-  /** Setup done, the one-time welcome offer not shown yet → /offer. */
-  needsOffer: boolean;
+  /** Set up, but the household is not subscribed: everything but the paywall is closed. */
+  needsSubscription: boolean;
 
   signIn(email: string, password: string): Promise<Me | null>;
   /** `codeSent: false` means the first verification email did not go out; the verify screen asks again. */
@@ -220,11 +220,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       plan: me?.plan ?? null,
       prefs: me?.prefs ?? null,
       // Fails open to FREE (BR-12): no plan answer is not Pro.
-      isPro: me?.plan?.tier === 'pro',
+      isPro: me?.plan?.entitled === true,
       loading,
       isOwner: me?.role === 'owner',
       needsSetup: Boolean(me?.needsSetup),
-      needsOffer: Boolean(me && !me.needsSetup && !me.offerSeen && me.role === 'owner'),
+      // Hard paywall: set up, but the household's subscription is not live.
+      needsSubscription: Boolean(me && !me.needsSetup && me.plan && !me.plan.entitled),
       signIn,
       register,
       signInWithProvider,

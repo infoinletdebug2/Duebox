@@ -7,9 +7,8 @@ import Reanimated, { FadeInDown, FadeInRight, useReducedMotion } from 'react-nat
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../src/auth/context';
 import { api, messageOf } from '../src/api/client';
-import { setupCompleted, trialStarted } from '../src/lib/analytics';
+import { setupCompleted } from '../src/lib/analytics';
 import { CATEGORY, hourLabel } from '../src/lib/format';
-import { TRIAL_DAYS } from '../src/config';
 import { font, GUTTER, radius, space } from '../src/theme/tokens';
 import { T } from '../src/ui/Text';
 import { tap } from '../src/ui/Button';
@@ -24,8 +23,8 @@ import type { Category, Me } from '../src/types';
  *   1. what usually slips through → the empty Home suggests those first;
  *   2. when reminders should arrive → the household's reminder hour.
  *
- * Finishing calls POST /setup, which also starts the 7-day Pro trial, then
- * the one-time welcome offer opens. Both questions can be skipped; Continue
+ * Finishing calls POST /setup, then the paywall opens (hard paywall: the
+ * free trial is the stores' own, started there). Both questions can be skipped; Continue
  * works with nothing picked. Artwork: assets/discover/setup.jpg.
  *
  * Fits without scrolling on a 640pt phone: the artwork is a band behind the
@@ -67,12 +66,12 @@ export default function Setup() {
     setSaving(true);
     setError(null);
     try {
-      const next = await api.post<Me & { trialStarted: boolean }>('/setup', { focus: picked, remindHour: hour });
+      const next = await api.post<Me>('/setup', { focus: picked, remindHour: hour });
       setupCompleted(picked.length, hour);
-      if (next.trialStarted) trialStarted(next.plan.trialDays, next.user.id);
       tap('success');
       setMeData(next);
-      router.replace(next.offerSeen ? '/(tabs)/home' : '/offer');
+      // Already subscribed (a restore, a second phone): straight in. Otherwise the paywall.
+      router.replace(next.plan?.entitled ? '/(tabs)/home' : '/paywall');
     } catch (failure) {
       setError(messageOf(failure));
       setSaving(false);
@@ -113,7 +112,7 @@ export default function Setup() {
           <View style={styles.pill}>
             <Icon name="sparkles" size={14} color={INK} />
             <T variant="caption" style={{ color: INK, fontFamily: font.bold }}>
-              Two taps, then {TRIAL_DAYS} days of Pro
+              Two taps, then you’re set
             </T>
           </View>
         )}
@@ -227,12 +226,12 @@ export default function Setup() {
           onPress={next}
           disabled={saving}
           accessibilityRole="button"
-          accessibilityLabel={step === 0 ? 'Continue' : `Start my ${TRIAL_DAYS} days of Pro`}
+          accessibilityLabel={step === 0 ? 'Continue' : 'Finish setup'}
           style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }, saving && { opacity: 0.6 }]}
           testID="setup-next"
         >
           <T variant="headline" style={{ color: INK }}>
-            {saving ? 'Setting up…' : step === 0 ? (picked.length > 0 ? `Continue · ${picked.length} picked` : 'Continue') : `Start my ${TRIAL_DAYS} days of Pro`}
+            {saving ? 'Setting up…' : step === 0 ? (picked.length > 0 ? `Continue · ${picked.length} picked` : 'Continue') : 'Finish setup'}
           </T>
           <View style={styles.ctaArrow}>
             <Icon name="arrow-right" size={18} color="#FFFFFF" />

@@ -178,6 +178,12 @@ export default function Account() {
         <Button label="Change password" tone="secondary" onPress={() => void changePassword()} loading={changing} disabled={!current && !next} testID="account-change-password" />
       </View>
 
+      {/* Reachable from the paywall's gear too: export and deletion stay open without a subscription (5.1.1(v)). */}
+      <Group title="Your data">
+        <ListRow icon="download" title="Export my data" subtitle="CSV or JSON, anytime" onPress={() => router.push('/settings/export')} testID="account-export" />
+        <ListRow icon="trash" title="Delete account" destructive onPress={() => router.push('/settings/delete')} testID="account-delete" />
+      </Group>
+
       <Group>
         <ListRow icon="logout" title="Sign out" chevron={false} onPress={() => setConfirmOut(true)} testID="account-sign-out" />
       </Group>

@@ -41,13 +41,12 @@ export const SECTIONS: LegalSection[] = [
     body: [
       {
         bullets: [
-          'Free: up to 5 open deadlines, 3 scans a month, and default reminders, for one person.',
-          'Pro: unlimited open deadlines, up to 100 scans a month (fair use), custom reminders and a household of up to 5 people.',
-          `Every new household gets ${TRIAL_DAYS} days of Pro free when it finishes setup — no card, no store purchase. When those days end the household moves to the free plan automatically; nothing is charged and nothing you saved is hidden or deleted.`,
-          `Pro is an auto-renewing subscription, billed monthly or yearly through the App Store or Google Play. A one-time welcome offer may show a discounted price after setup; the store shows the final price before you confirm.`,
+          'Duebox needs a subscription (Duebox Pro): unlimited deadlines, up to 100 letter reads a month (fair use), custom reminders and a household of up to 5 people. There is no free plan.',
+          'Duebox Pro is an auto-renewing subscription, billed monthly or yearly through the App Store or Google Play at the price the store shows before you confirm.',
+          `The yearly plan may include a ${TRIAL_DAYS}-day free trial for people who haven’t had one. Your payment method is taken when the trial starts, and the first yearly payment is charged when it ends unless you cancel at least 24 hours before. Any unused portion of a free trial is forfeited when you buy a subscription.`,
           'Your subscription renews at the same price each period unless you cancel at least 24 hours before the period ends, in your App Store or Google Play account settings. Deleting the app does not cancel it.',
           'Refunds are handled by Apple or Google under their policies.',
-          'If Pro ends, nothing is deleted or hidden. You can still view, complete, export and delete everything; adding over the free limits needs Pro again.',
+          'If your subscription ends, Duebox locks and reminders stop. Nothing you saved is deleted: subscribe again to pick up where you left off, and you can export or delete your data anytime from Account.',
         ],
       },
     ],

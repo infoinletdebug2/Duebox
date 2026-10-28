@@ -11,7 +11,6 @@ import { T } from '../../src/ui/Text';
 import { Button, tap } from '../../src/ui/Button';
 import { ChoiceGrid } from '../../src/ui/Controls';
 import { Icon } from '../../src/ui/Icon';
-import { Banner } from '../../src/ui/Feedback';
 import { useToast } from '../../src/ui/Sheet';
 import { emptyForm, ItemForm, toInput, validate, type FormState } from '../../src/items/ItemForm';
 import { routeAfterFirstSave } from '../../src/items/afterSave';
@@ -24,7 +23,7 @@ import type { Category } from '../../src/types';
 /**
  * ADD AN ITEM BY HAND (SCREENS #6, FR-I1). One tap on a common deadline fills
  * everything but the date; the card at the top shows the item exactly as it
- * will look in the list, as you type. At the free limit, the paywall opens
+ * will look in the list, as you type. If the subscription lapsed underneath, the paywall opens
  * instead of a form that would be refused.
  */
 export default function NewItem() {
@@ -34,7 +33,7 @@ export default function NewItem() {
   const s = useStyles();
   const params = useLocalSearchParams<{ category?: string }>();
   const { isPro } = useAuth();
-  const { atItemLimit, openPaywall, handlePlanError } = usePlanGate();
+  const { handlePlanError } = usePlanGate();
   const home = useHome();
   const create = useCreateItem();
   const [form, setForm] = useState<FormState>(() => emptyForm(isPro, (params.category as Category | undefined) ?? 'other'));
@@ -51,7 +50,6 @@ export default function NewItem() {
     const found = validate(form);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    if (atItemLimit) return openPaywall('item_limit');
     setError(null);
     create.mutate(toInput(form), {
       onSuccess: (item) => {
@@ -84,9 +82,6 @@ export default function NewItem() {
         </View>
       }
     >
-      {atItemLimit ? (
-        <Banner icon="lock" message="You’re at your free limit of open deadlines. Mark one done, or go Pro for unlimited." actionLabel="See Pro" onPress={() => openPaywall('item_limit')} />
-      ) : null}
 
       {/* The preview: exactly how it will sit in the list. */}
       <View style={s.preview} testID="item-preview">

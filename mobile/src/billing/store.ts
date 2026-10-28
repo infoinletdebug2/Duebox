@@ -2,8 +2,8 @@ import { Platform } from 'react-native';
 import type { Purchase, PurchaseIOS, PurchaseAndroid } from 'react-native-iap';
 import { api } from '../api/client';
 import type { Plan } from '../types';
-import { IS_EXPO_GO, OFFER_IDS, PRODUCT_IDS } from '../config';
-import { purchaseCompleted, purchaseEnded, purchaseStarted } from '../lib/analytics';
+import { IS_EXPO_GO, PRODUCT_IDS, TRIAL_DAYS } from '../config';
+import { purchaseCompleted, purchaseEnded, purchaseStarted, trialStarted } from '../lib/analytics';
 
 /**
  * react-native-iap is loaded LAZILY, and that is not an optimisation.
@@ -82,6 +82,15 @@ export interface StorePlan {
   /** The store's own number and currency, for per-month framing only. */
   amount: number | null;
   currency: string | null;
+  /**
+   * The store's free intro offer on this product, when there is one AND this
+   * store account may still take it (Apple: isEligibleForIntroOfferIOS; Play
+   * only lists offers the account is eligible for). Null = no free trial:
+   * the paywall must not say "free".
+   */
+  trial: { days: number } | null;
+  /** Play: the offer to buy — the trial offer when there is one, else the base plan. */
+  offerToken: string | null;
 }
 
 /** The person dismissed the store sheet. Not an error. */
@@ -117,10 +126,8 @@ function harnessStore(): boolean {
 }
 
 const HARNESS_PRICES: Record<string, { price: string; amount: number }> = {
-  [PRODUCT_IDS.monthly]: { price: '$4.99', amount: 4.99 },
-  [PRODUCT_IDS.yearly]: { price: '$34.99', amount: 34.99 },
-  [OFFER_IDS.monthly]: { price: '$3.99', amount: 3.99 },
-  [OFFER_IDS.yearly]: { price: '$27.99', amount: 27.99 },
+  [PRODUCT_IDS.monthly]: { price: '$7.99', amount: 7.99 },
+  [PRODUCT_IDS.yearly]: { price: '$39.99', amount: 39.99 },
 };
 
 export async function isAvailable(): Promise<boolean> {
@@ -145,16 +152,18 @@ export async function isAvailable(): Promise<boolean> {
  * server constant is the wrong number for most of the world and a store
  * rejection for the rest.
  */
-export async function loadPlans(which: 'regular' | 'offer' = 'regular'): Promise<StorePlan[]> {
-  const ids = which === 'offer' ? OFFER_IDS : PRODUCT_IDS;
+export async function loadPlans(): Promise<StorePlan[]> {
+  const ids = PRODUCT_IDS;
   if (harnessStore()) {
-    return (['monthly', 'yearly'] as const).map((period) => ({
+    return (['yearly', 'monthly'] as const).map((period) => ({
       productId: ids[period],
       period,
       price: HARNESS_PRICES[ids[period]]!.price,
       title: period === 'yearly' ? 'Yearly' : 'Monthly',
       amount: HARNESS_PRICES[ids[period]]!.amount,
       currency: 'USD',
+      trial: period === 'yearly' ? { days: TRIAL_DAYS } : null,
+      offerToken: null,
     }));
   }
   if (!(await isAvailable())) return [];
@@ -162,8 +171,8 @@ export async function loadPlans(which: 'regular' | 'offer' = 'regular'): Promise
   if (!IAP) return [];
 
   const wanted: Array<{ productId: string; period: PlanPeriod }> = [
-    { productId: ids.monthly, period: 'monthly' },
     { productId: ids.yearly, period: 'yearly' },
+    { productId: ids.monthly, period: 'monthly' },
   ];
 
   const found = await IAP.fetchProducts({
@@ -173,12 +182,21 @@ export async function loadPlans(which: 'regular' | 'offer' = 'regular'): Promise
 
   const products = found ?? [];
 
-  return wanted.flatMap((entry) => {
+  // Apple answers eligibility per subscription GROUP, once for both products.
+  let iosEligible = true;
+  const group = products.map((p) => (p as { subscriptionGroupIdIOS?: string | null }).subscriptionGroupIdIOS).find(Boolean);
+  if (Platform.OS === 'ios' && group) {
+    iosEligible = await IAP.isEligibleForIntroOfferIOS(group).catch(() => false);
+  }
+
+  const plans = await Promise.all(wanted.map(async (entry) => {
     const product = products.find((candidate) => candidate?.id === entry.productId);
     // A product the store does not return is one that is not configured, not
     // approved yet, or not available in this storefront. Dropping it shows a
     // paywall with one plan instead of one with a blank price.
     if (!product) return [];
+    const offers = readOffers(product);
+    const trial = Platform.OS === 'ios' ? (iosEligible ? offers.trial : null) : offers.trial;
     return [
       {
         productId: entry.productId,
@@ -187,9 +205,66 @@ export async function loadPlans(which: 'regular' | 'offer' = 'regular'): Promise
         title: product.title ?? (entry.period === 'yearly' ? 'Yearly' : 'Monthly'),
         amount: typeof (product as { price?: unknown }).price === 'number' ? (product as { price: number }).price : null,
         currency: typeof (product as { currency?: unknown }).currency === 'string' ? (product as { currency: string }).currency : null,
+        trial: trial ? { days: trial.days } : null,
+        offerToken: (trial?.offerToken ?? offers.baseOfferToken) || null,
       },
     ];
-  });
+  }));
+  return plans.flat();
+}
+
+type Offer = {
+  paymentMode?: string | null;
+  type?: string | null;
+  period?: { unit?: string; value?: number } | null;
+  periodCount?: number | null;
+  offerTokenAndroid?: string | null;
+  basePlanIdAndroid?: string | null;
+  id?: string;
+  pricingPhasesAndroid?: { pricingPhaseList?: { priceAmountMicros?: string; billingPeriod?: string; billingCycleCount?: number }[] } | null;
+};
+
+const DAYS: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
+
+/** ISO 8601 "P3D" / "P1W" / "P1M" → days. */
+function isoDays(iso: string | undefined): number | null {
+  const m = /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?$/.exec(iso ?? '');
+  if (!m) return null;
+  const [, y, mo, w, d] = m.map((v) => Number(v ?? 0));
+  return (y ?? 0) * 365 + (mo ?? 0) * 30 + (w ?? 0) * 7 + (d ?? 0) || null;
+}
+
+/**
+ * The free-trial offer on a store product, and (Play) the base plan's token.
+ * Play lists the base plan and each offer with its own token; the trial is
+ * the one whose first pricing phase is free. Apple carries one introductory
+ * offer, with paymentMode 'free-trial'.
+ */
+function readOffers(product: unknown): { trial: { days: number; offerToken: string | null } | null; baseOfferToken: string | null } {
+  const offers = (((product as { subscriptionOffers?: Offer[] | null }).subscriptionOffers ?? []) as Offer[]).filter(Boolean);
+  let trial: { days: number; offerToken: string | null } | null = null;
+  let baseOfferToken: string | null = null;
+
+  for (const offer of offers) {
+    const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
+    const freeFirst = phases.length > 1 && phases[0]?.priceAmountMicros === '0';
+    if (offer.paymentMode === 'free-trial' || freeFirst) {
+      const fromPhase = freeFirst ? isoDays(phases[0]?.billingPeriod) : null;
+      const unit = offer.period?.unit ?? '';
+      const fromPeriod = offer.period ? (DAYS[unit] ?? 0) * (offer.period.value ?? 1) * (offer.periodCount ?? 1) : null;
+      trial ??= { days: fromPhase ?? fromPeriod ?? TRIAL_DAYS, offerToken: offer.offerTokenAndroid ?? null };
+    } else if (offer.offerTokenAndroid && phases.length <= 1) {
+      baseOfferToken ??= offer.offerTokenAndroid;
+    }
+  }
+
+  // Older StoreKit shape: the intro offer only as flat fields on the product.
+  if (!trial && (product as { introductoryPricePaymentModeIOS?: string }).introductoryPricePaymentModeIOS === 'free-trial') {
+    const unit = (product as { introductoryPriceSubscriptionPeriodIOS?: string }).introductoryPriceSubscriptionPeriodIOS ?? 'day';
+    const count = Number((product as { introductoryPriceNumberOfPeriodsIOS?: string }).introductoryPriceNumberOfPeriodsIOS ?? 1) || 1;
+    trial = { days: (DAYS[unit] ?? 1) * count, offerToken: null };
+  }
+  return { trial, baseOfferToken };
 }
 
 /** How long to wait for the store before calling it a failure. */
@@ -203,7 +278,20 @@ const PURCHASE_TIMEOUT_MS = 120_000;
  * and iOS then stops redelivering the transaction, so a failure at exactly
  * that moment loses the purchase permanently.
  */
-export async function purchase(productId: string): Promise<Plan> {
+/**
+ * Who is buying, told to the store so the purchase is tied to this account
+ * even if the app dies before /billing/verify answers: Apple's appAccountToken
+ * (must be a UUID) and Play's obfuscatedAccountId.
+ */
+export interface PurchaseFor {
+  accountId: string | null;
+  /** Play: the offer to buy (StorePlan.offerToken) — the trial offer on yearly. */
+  offerToken?: string | null;
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function purchase(productId: string, buyer: PurchaseFor = { accountId: null }): Promise<Plan> {
   if (!(await isAvailable())) {
     throw new Error('Purchases are not available in this build.');
   }
@@ -245,11 +333,16 @@ export async function purchase(productId: string): Promise<Plan> {
       finish(() => reject(new Error('The store did not respond. Try again.')));
     }, PURCHASE_TIMEOUT_MS);
 
+    const account = buyer.accountId ?? null;
     IAP.requestPurchase({
       type: 'subs',
       request: {
-        apple: { sku: productId },
-        google: { skus: [productId] },
+        apple: { sku: productId, ...(account && UUID.test(account) ? { appAccountToken: account.toLowerCase() } : {}) },
+        google: {
+          skus: [productId],
+          ...(buyer.offerToken ? { subscriptionOffers: [{ sku: productId, offerToken: buyer.offerToken }] } : {}),
+          ...(account ? { obfuscatedAccountId: account.slice(0, 64) } : {}),
+        },
       },
     }).catch((failure: unknown) => {
       finish(() =>
@@ -267,9 +360,14 @@ export async function purchase(productId: string): Promise<Plan> {
 
   const plan = await verify(result);
   await IAP.finishTransaction({ purchase: result, isConsumable: false }).catch(() => undefined);
-  const period = productId === PRODUCT_IDS.yearly || productId === OFFER_IDS.yearly ? 'yearly' : 'monthly';
-  const eventId = Platform.OS === 'ios' ? ((result as PurchaseIOS).transactionId ?? result.id) : ((result as PurchaseAndroid).purchaseToken ?? result.id).slice(0, 64);
-  purchaseCompleted(productId, period, String(eventId));
+  const period = productId === PRODUCT_IDS.yearly ? 'yearly' : 'monthly';
+  // The chain the server keys its milestones on: Apple's original transaction, Play's token.
+  const chain =
+    Platform.OS === 'ios'
+      ? `apple:${(result as PurchaseIOS).originalTransactionIdentifierIOS ?? (result as PurchaseIOS).transactionId ?? result.id}`
+      : `google:${(result as PurchaseAndroid).purchaseToken ?? result.id}`;
+  if (plan.isTrial) trialStarted(plan.trialDays, chain);
+  else purchaseCompleted(productId, period, chain);
   return plan;
 }
 

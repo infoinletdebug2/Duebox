@@ -7,59 +7,52 @@ import { Press } from '../ui/Button';
 import { Icon, type IconName } from '../ui/Icon';
 
 /**
- * The plan, always visible on Home, one tap from what to do about it:
- *   trial      → "Pro trial · 5 days left"  [Keep Pro]   → paywall
- *   free       → "Free plan · 3 of 5 deadlines · 1 of 3 scans"  [Go Pro]
- *   no trial   → "Start your 7-day free trial"  [Start]   → Subscription
- *   subscribed → "Duebox Pro · renews Jan 4"  ›          → Subscription
- * A member (not the owner) sees the same card; buying is the owner's, so
- * their tap opens Subscription, which explains that.
+ * The subscription, on Home, one tap from Subscription settings. Behind the
+ * hard paywall Home is only ever seen subscribed, so there are four states:
+ *   trial      → "Free trial · 2 days left"   "First charge Jan 4" (or "Ends Jan 4" once cancelled)
+ *   grace      → "Payment problem"            "Update your payment method"   (warm)
+ *   cancelled  → "Duebox Pro"                 "Ends Jan 4"                   (warm)
+ *   renewing   → "Duebox Pro"                 "Renews Jan 4"
+ * A member (not the owner) sees the same card; Subscription explains that
+ * only the owner manages it.
  */
 export function PlanCard() {
   const router = useRouter();
   const c = useColors();
   const s = useStyles();
-  const { plan, isOwner } = useAuth();
-  if (!plan) return null;
+  const { plan } = useAuth();
+  if (!plan || !plan.entitled) return null;
 
+  const short = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null);
   const daysLeft = plan.trialEndsAt ? Math.max(0, Math.ceil((Date.parse(plan.trialEndsAt) - Date.now()) / 86_400_000)) : null;
-  const endDay = plan.trialEndsAt ? new Date(plan.trialEndsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null;
-  const subscribed = plan.tier === 'pro' && plan.source === 'store';
-  const trialAvailable = plan.tier === 'free' && !plan.trialUsed;
+  const go = () => router.push('/settings/subscription');
 
   let icon: IconName = 'crown';
   let title: string;
   let sub: string;
-  let action: string | null;
-  let go: () => void;
-  const toPaywall = () => router.push({ pathname: '/paywall', params: { reason: 'default' } });
-  const toSubscription = () => router.push('/settings/subscription');
+  let action: string | null = null;
+  let warm = false;
 
   if (plan.isTrial) {
     icon = 'sparkles';
-    title = `Pro trial · ${daysLeft === 0 ? 'ends today' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}`;
-    sub = endDay ? `Unlocked until ${endDay}` : "Everything unlocked";
-    action = isOwner ? 'Keep Pro' : null;
-    go = isOwner ? toPaywall : toSubscription;
-  } else if (subscribed) {
+    title = `Free trial · ${daysLeft === 0 ? 'ends today' : `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left`}`;
+    sub = plan.willRenew ? `First charge ${short(plan.trialEndsAt) ?? 'when it ends'}` : `Ends ${short(plan.trialEndsAt) ?? 'soon'} — you’ve cancelled`;
+    warm = !plan.willRenew;
+  } else if (plan.status === 'grace') {
+    icon = 'alert';
+    title = 'Payment problem';
+    sub = 'Update your payment method to keep Duebox';
+    action = 'Fix';
+    warm = true;
+  } else if (!plan.willRenew && plan.expiresAt) {
     title = 'Duebox Pro';
-    sub = plan.renewsAt ? `Renews ${new Date(plan.renewsAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : 'Unlimited deadlines for your household';
-    action = null;
-    go = toSubscription;
-  } else if (trialAvailable && isOwner) {
-    icon = 'sparkles';
-    title = `Start your ${plan.trialDays}-day free trial`;
-    sub = 'Unlimited deadlines and 100 scans — no card';
-    action = 'Start';
-    go = toSubscription;
+    sub = `Ends ${short(plan.expiresAt)} — renew to keep reminders`;
+    warm = true;
   } else {
-    title = 'Free plan';
-    sub = `${plan.usage.openItems} of ${plan.limits.openItems ?? '∞'} deadlines · ${plan.usage.scansThisMonth} of ${plan.limits.scansPerMonth} scans`;
-    action = isOwner ? 'Go Pro' : null;
-    go = isOwner ? toPaywall : toSubscription;
+    title = 'Duebox Pro';
+    sub = plan.renewsAt ? `Renews ${short(plan.renewsAt)}` : 'Every deadline, for your whole household';
   }
 
-  const warm = !subscribed;
   return (
     <Press onPress={go} accessibilityRole="button" accessibilityLabel={`${title}. ${sub}`} style={[s.card, warm ? s.warm : s.calm]} testID="home-plan">
       <View style={[s.icon, { backgroundColor: warm ? c.accent : c.brandSoft }]}>

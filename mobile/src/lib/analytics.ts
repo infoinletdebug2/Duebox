@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { api } from '../api/client';
-import { META_ENABLED } from '../config';
+import { LIST_PRICE, META_ENABLED } from '../config';
 import { initMeta, logMetaEvent, logMetaPurchase, metaAnonymousId, requestMetaTracking, type TrackingStatus } from './meta';
 import { capture, identify, initPosthog, reset, screen } from './posthog';
 
@@ -29,11 +29,10 @@ import { capture, identify, initPosthog, reset, screen } from './posthog';
  * | registrationCompleted | signed_up                      | fb_mobile_complete_registration    | sign-up / first social sign-in |
  * | signedIn              | signed_in                      | —                                  | sign-in, returning social sign-in |
  * | setupCompleted        | setup_completed                | setup_completed                    | two-tap setup done |
- * | trialStarted          | — (server: trial_started)      | StartTrial                         | setup started the 7-day trial |
- * | offerViewed           | offer_viewed                   | offer_viewed                       | welcome offer opens |
+ * | trialStarted          | — (server: trial_started)      | StartTrial (0)                     | the store free trial bought (yearly) |
  * | coreActionCompleted   | deadline_saved (every save)    | —                                  | scan confirmed / manual save |
  * |                       | core_action_completed (once)   | core_action_completed              | FIRST deadline saved on this install |
- * | paywallViewed         | paywall_viewed                 | paywall_viewed                     | paywall, non-subscriber |
+ * | paywallViewed         | paywall_viewed {reason}        | paywall_viewed                     | the paywall: onboarding, lapsed_* |
  * | purchaseStarted       | purchase_started               | —                                  | the store sheet opens |
  * | purchaseEnded         | purchase_cancelled / _failed   | —                                  | the store sheet closes without buying |
  * | purchaseCompleted     | — (server: purchase_completed) | Subscribe + fb_mobile_purchase     | after /billing/verify |
@@ -123,20 +122,13 @@ export function setupCompleted(focusCount: number, remindHour: number): void {
 }
 
 /** `eventId` matches the server's Conversions API copy (`trial-<userId>`). */
-export function trialStarted(trialDays: number, userId: string | null | undefined): void {
-  safe(() =>
-    logMetaEvent('StartTrial', {
-      trial_days: trialDays,
-      fb_currency: 'USD',
-      _valueToSum: 0,
-      ...(userId ? { _eventId: `trial-${userId}` } : {}),
-    }),
-  );
-}
-
-export function offerViewed(hasDiscount: boolean): void {
-  safe(() => capture('offer_viewed', { discount: hasDiscount }));
-  safe(() => logMetaEvent('offer_viewed', { discount: hasDiscount ? 1 : 0 }));
+/**
+ * The stores' free trial started (a $0 purchase on yearly). `chain` is
+ * `<platform>:<original transaction id | purchase token>` — the server sends
+ * its copy with the same `trial-<chain>` id, so Meta counts one.
+ */
+export function trialStarted(trialDays: number, chain: string): void {
+  safe(() => logMetaEvent('StartTrial', { trial_days: trialDays, fb_currency: 'USD', _valueToSum: 0, _eventId: `trial-${chain}` }));
 }
 
 /**
@@ -164,12 +156,13 @@ export function paywallViewed(reason: string): void {
  * revenue event is the server's. `eventId` is the store transaction id, the
  * same key the server uses, so Meta counts one purchase.
  */
-export function purchaseCompleted(productId: string, period: 'monthly' | 'yearly', eventId: string): void {
+export function purchaseCompleted(productId: string, period: 'monthly' | 'yearly', chain: string): void {
   safe(() => {
     if (reportedPurchases.has(productId)) return;
     reportedPurchases.add(productId);
-    const valueEstimate = period === 'yearly' ? 34.99 : 4.99;
-    logMetaEvent('Subscribe', { fb_content_id: productId, fb_currency: 'USD', _valueToSum: valueEstimate, _eventId: eventId });
+    const valueEstimate = period === 'yearly' ? LIST_PRICE.yearly : LIST_PRICE.monthly;
+    // Same id as the server's first-charge milestone (backend milestones.ts).
+    logMetaEvent('Subscribe', { fb_content_id: productId, fb_currency: 'USD', _valueToSum: valueEstimate, _eventId: `paid-${chain}` });
     logMetaPurchase(valueEstimate, 'USD', { fb_content_id: productId });
   });
 }

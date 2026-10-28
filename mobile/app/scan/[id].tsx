@@ -171,7 +171,7 @@ function Confirm({ scan }: { scan: Scan }) {
   const c = useColors();
   const s = useStyles();
   const { isPro } = useAuth();
-  const { atItemLimit, openPaywall, handlePlanError } = usePlanGate();
+  const { handlePlanError } = usePlanGate();
   const home = useHome();
   const confirm = useConfirmScan(scan.id);
   const discard = useDiscardScan();
@@ -202,7 +202,6 @@ function Confirm({ scan }: { scan: Scan }) {
     const checked = cards.map((card) => ({ ...card, errors: validate(card.form) }));
     setCards(checked);
     if (checked.some((card) => Object.keys(card.errors).length > 0)) return;
-    if (atItemLimit) return openPaywall('item_limit');
     setError(null);
     confirm.mutate(
       checked.map((card) => ({ ...toInput(card.form), candidateKey: card.key })),

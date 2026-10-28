@@ -61,11 +61,11 @@ export default function SignUp() {
       lead="Snap a letter, and Duebox remembers the date for you."
       hero={{
         art: 'auth',
-        eyebrow: 'Free to start · no card',
+        eyebrow: `${TRIAL_DAYS}-day free trial on yearly`,
         chips: [
           { icon: 'scan', label: 'AI reads the date' },
           { icon: 'bell', label: 'Reminded before' },
-          { icon: 'sparkles', label: `${TRIAL_DAYS} days of Pro` },
+          { icon: 'sparkles', label: `${TRIAL_DAYS} days free` },
         ],
       }}
       testID="screen-sign-up"

@@ -271,7 +271,7 @@ export default function Discover() {
           {last ? (
             <>
               <T variant="caption" align="center" style={{ color: ON_INK_MUTED }}>
-                Free to start · {TRIAL_DAYS} days of Pro · No card
+                {TRIAL_DAYS}-day free trial on yearly · Cancel anytime
               </T>
               <T
                 variant="callout"

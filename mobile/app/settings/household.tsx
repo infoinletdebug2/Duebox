@@ -38,7 +38,7 @@ function expiryDay(iso: string): string {
 export default function HouseholdScreen() {
   const toast = useToast();
   const { household, isOwner, refresh } = useAuth();
-  const { handlePlanError, guard } = usePlanGate();
+  const { handlePlanError } = usePlanGate();
   const members = useMembers();
   const invites = useInvites(isOwner);
   const remove = useRemoveMember();
@@ -72,7 +72,7 @@ export default function HouseholdScreen() {
     <Screen
       form
       header={<Header />}
-      footer={isOwner ? <Button label="Invite someone" icon="user-plus" onPress={() => guard('household', () => setInviting(true))} testID="invite-open" /> : <LeaveButton />}
+      footer={isOwner ? <Button label="Invite someone" icon="user-plus" onPress={() => setInviting(true)} testID="invite-open" /> : <LeaveButton />}
       testID="screen-household"
     >
       <HeroBanner

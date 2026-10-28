@@ -33,7 +33,7 @@ export default function ScanScreen() {
   const c = useColors();
   const s = useStyles();
   const toast = useToast();
-  const { guard, handlePlanError } = usePlanGate();
+  const { handlePlanError } = usePlanGate();
 
   const [pages, setPages] = useState<Page[]>([]);
   const [busy, setBusy] = useState(false);
@@ -134,7 +134,7 @@ export default function ScanScreen() {
             icon="sparkles"
             disabled={pages.length === 0}
             loading={busy}
-            onPress={() => guard('scan_limit', () => void run())}
+            onPress={() => void run()}
             testID="scan-upload"
           />
           <Button label="Type it in instead" tone="quiet" small onPress={() => router.replace('/item/new')} disabled={busy} />
