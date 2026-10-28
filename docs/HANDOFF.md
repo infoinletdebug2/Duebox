@@ -11,8 +11,8 @@ in priority order. Evidence for every "works" is in `TEST-LOG.md`.
 | Database | 15 migrations applied to `app_duebox` on api.xenition.com; billing enabled; 8 products declared | `npm run migrate` |
 | AI letter reading | Through Xenition: `sdk.ai.chat` with the page images, `noDataRetention`; the OpenRouter key is the app's AI key stored in Xenition (`scripts/ai-key.ts`); references masked to last 4 | Made-up renewal letter: both deadlines + evidence, 3.3 s |
 | Reminders | DST-safe planner, re-planned on every change, Expo Push cron every 5 min, retries | Unit tests + a live delivery through Expo |
-| 7-day Pro trial | Starts on the server when setup finishes, once per account; Free afterwards (5 items, 3 scans/month), never locked | curl suite |
-| First-run journey | Pitch (5 slides, generated art) → sign-up (email + password only, or Apple/Google) → two-tap setup → welcome offer → Home | Harness 31/31, flows 16/16, live flow 1/1 |
+| Hard paywall (2026-10-28) | No free tier; $7.99/mo, $39.99/yr; 3-day store free trial on yearly (card upfront); lapsed = locked, reminders stop, data kept — see `docs/PAYWALL.md` | `scripts/paywall-check.ts` 21/21 on production |
+| First-run journey | Pitch (5 slides, generated art) → sign-up (email + password only, or Apple/Google) → two-tap setup → paywall → Home | Harness 31/31, flows 16/16, live flow 1/1 |
 | Apple + Google sign-in | Native lane when the platform holds this app's client ids; otherwise the brokered browser lane; a 412 falls back automatically | Same code path proven in production elsewhere; not yet tried on a device for Duebox |
 | Meta measurement | SDK + ATT + attribution hand-off + server Conversions API | Dormant until keys are set (by design) |
 | **Production** | Live at **https://duebox.xenition.com** (API + website: privacy, terms, support, delete-account) through Xenition's own pipeline | `API=https://duebox.xenition.com npm run test:api` → 221/221; live journey 1/1 |
@@ -30,7 +30,7 @@ Workers secrets: `XENITION_API_KEY`, `EXPO_ACCESS_TOKEN`,
 1. ~~Deploy~~ — done: https://duebox.xenition.com (`docs/DEPLOY.md`). Still to add on the Worker: store keys, Expo access token, Meta keys (need secrets on Xenition's Cloudflare account).
 2. **Dev build on real phones** (EAS project id → `EXPO_PUBLIC_EAS_PROJECT_ID`): push arrival with Done/Snooze actions, camera scan, Apple and Google native sign-in.
 3. **Native sign-in credentials** on the platform (Apple Services ID, Google client ids) so the native sheets are used instead of the browser lane.
-4. **Store products**: `duebox_pro_monthly` ($4.99), `duebox_pro_yearly` ($34.99), and the welcome-offer pair `duebox_pro_monthly_offer` / `duebox_pro_yearly_offer`, all on entitlement `pro`; Apple/Google server keys; sandbox purchase + restore.
+4. **Store products** (exact steps in `docs/PAYWALL.md`): `duebox_pro_yearly` ($39.99, 3-day free intro offer) and `duebox_pro_monthly` ($7.99), entitlement `pro`; the welcome-offer products are retired; Apple/Google server keys; sandbox purchase + restore.
 5. **Meta**: create the Meta app, set `EXPO_PUBLIC_META_APP_ID` + `EXPO_PUBLIC_META_CLIENT_TOKEN` (mobile) and `META_APP_ID` + `META_CAPI_ACCESS_TOKEN` (worker), rebuild; check Events Manager → Test Events. Declare tracking in App Privacy.
 6. **Reader benchmark** on 20–30 redacted real letters, phone-photo quality.
 7. **Legal review** of `mobile/app/legal/*`.
@@ -40,6 +40,6 @@ Workers secrets: `XENITION_API_KEY`, `EXPO_ACCESS_TOKEN`,
 
 - `backend/src/routers/*` — every route; `backend/src/logic/*` — pure, tested logic.
 - `backend/scripts/api-test.sh` — the curl suite; `scripts/sql.ts` — a one-statement helper the suite uses to bend time.
-- `mobile/app/discover.tsx`, `setup.tsx`, `offer.tsx` — the first-run journey.
+- `mobile/app/discover.tsx`, `setup.tsx`, `paywall.tsx` — the first-run journey (hard paywall).
 - `mobile/src/lib/analytics.ts` — the only measurement entry point; `src/lib/review.ts` + `src/ui/ReviewPrompt.tsx` — ratings.
 - `mobile/assets/discover/*.jpg` — artwork (prompts: `mobile/assets/source/PROMPT.md`); discovery animates real-app cards over it (prompts: `mobile/assets/source/PROMPT.md`).
