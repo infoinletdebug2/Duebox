@@ -1,10 +1,25 @@
 import { useEffect, useState } from 'react';
-import { AccessibilityInfo, BackHandler, Pressable, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Reanimated, { Easing, FadeIn, Keyframe, ReduceMotion } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  Extrapolation,
+  interpolate,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { TRIAL_DAYS } from '../src/config';
-import { font, GUTTER, makeStyles, radius, space, useColors } from '../src/theme/tokens';
+import { font, GUTTER, radius, space, useColors } from '../src/theme/tokens';
 import { T } from '../src/ui/Text';
 import { Icon } from '../src/ui/Icon';
 import { tap } from '../src/ui/Button';
@@ -18,70 +33,81 @@ import { onboardingCompleted, onboardingStarted, requestTracking } from '../src/
 /**
  * DISCOVERY — the first thing a new phone sees, before sign-up.
  *
- * Five slides that answer "what is this, why would I want it" in a glance:
- * the top of each is a plum stage holding a small piece of the REAL app (the
- * dated card, the evidence line, the reminder, the household), the bottom is
- * one short headline and one line. The reader is in charge: Next, Back and
- * Skip — no auto-advance, no swipe. Android back steps to the previous slide.
+ * Five slides. Each is the scene from our 3D artwork (assets/discover/*.jpg,
+ * prompts in assets/source/PROMPT.md) with a piece of the REAL app acting it
+ * out in front: the card rising out of the scanned letter, the deadlines
+ * caught in time, the date tied to its line in the letter, the reminders
+ * arriving 30 → 7 → 1 days before, the household splitting the work. Under it,
+ * a headline of six words or fewer and one line.
  *
- * It pitches only what the app ships: reading letters, the evidence next to
- * every date, reminders 30/7/1 days before, household sharing. No ratings, no
- * user counts, no statistic we can't source. The mock dates are computed from
- * today, so every countdown on a slide is true.
+ * Always plum, in light and dark alike — it is the brand's front door, like a
+ * splash screen; the cards inside follow the phone's theme like the real app.
  *
- * Reduce Motion: the stage cross-fades instead of growing in.
+ * The reader is in charge: Next, Back and Skip. No auto-advance, no swipe.
+ * Android back steps to the previous slide. Each slide plays its little scene
+ * once on arrival (~1.5 s) and then holds still; Reduce Motion shows the
+ * final frame with a cross-fade.
+ *
+ * It pitches only what the app ships. No ratings, no user counts, no statistic
+ * we can't source. Mock dates are computed from today, so every countdown is
+ * true.
  */
 
-/** The stage is always plum — in dark mode too, where it sits on the deeper ground. */
-const PLUM = '#2E1A47';
-const ON_PLUM_MUTED = '#CBBFDA';
 const INK = '#1E1229';
-
-/** Each mock is drawn in this box, then scaled to the stage. */
-const MOCK = 300;
+const MARIGOLD = '#F2B33D';
+const ON_INK_MUTED = 'rgba(255,255,255,0.72)';
+/** Strong ease-out: the motion law's curve for everything that isn't a finger. */
+const EASE = Easing.bezier(0.23, 1, 0.32, 1);
+const SETTLE = { damping: 18, stiffness: 180, mass: 1 };
 
 const today = localToday();
 const day = (n: number) => addDays(today, n);
 const longDate = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
 interface Slide {
+  art: number;
   title: string;
   body: string;
   /** What the picture shows, for screen readers. */
   alt: string;
-  Mock: () => React.JSX.Element;
+  Scene: () => React.JSX.Element;
 }
 
 const SLIDES: Slide[] = [
   {
-    title: 'Snap a letter. Never miss it.',
-    body: 'Duebox finds the deadline and reminds you first.',
-    alt: 'A letter is scanned, becomes a card due in 7 days, and a reminder arrives.',
-    Mock: LoopMock,
+    art: require('../assets/discover/scan.jpg'),
+    title: 'Never miss a due date.',
+    body: 'Snap a letter. Duebox finds the date and reminds you.',
+    alt: 'A phone scans a letter; it becomes a car insurance card due in 7 days, and a reminder arrives.',
+    Scene: LoopScene,
   },
   {
+    art: require('../assets/discover/problem.jpg'),
     title: 'No more late fees.',
     body: 'Bills, fines, renewals and free trials — caught in time.',
-    alt: 'Three upcoming deadlines: a free trial ending tomorrow, a parking fine in 3 days, a passport renewal in 21 days.',
-    Mock: ListMock,
+    alt: 'A pile of mail turns into three deadlines: a free trial ending tomorrow, a parking fine in 3 days, a passport renewal in 21 days.',
+    Scene: ListScene,
   },
   {
+    art: require('../assets/discover/read.jpg'),
     title: 'AI reads it. You see why.',
     body: 'Every date shows the line it came from.',
-    alt: 'A water bill letter with the sentence giving the due date highlighted, linked to the saved card.',
-    Mock: EvidenceMock,
+    alt: 'A letter with the due-date sentence highlighted, tied to the water bill card it became.',
+    Scene: EvidenceScene,
   },
   {
+    art: require('../assets/discover/remind.jpg'),
     title: 'Reminded 30, 7 and 1 day before.',
     body: 'Mark it done or snooze it from the notification.',
-    alt: 'Three reminders for the car insurance, the front one with Mark done and Snooze buttons.',
-    Mock: RemindMock,
+    alt: 'Three reminders for the car insurance arrive one after another; the last is marked done.',
+    Scene: RemindScene,
   },
   {
+    art: require('../assets/discover/together.jpg'),
     title: 'Share it with your household.',
     body: 'Invite a partner. Assign who handles what.',
-    alt: 'A household of two, each deadline showing who handles it.',
-    Mock: HouseholdMock,
+    alt: 'Two people filing cards into one tray; each deadline shows who handles it.',
+    Scene: HouseholdScene,
   },
 ];
 
@@ -89,21 +115,18 @@ export default function Discover() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
-  const c = useColors();
-  const s = useStyles();
+  const reduceMotion = useReducedMotion();
   const [step, setStep] = useState(0);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const [stage, setStage] = useState({ w: 0, h: 0 });
+  const [area, setArea] = useState(0);
+  const [sceneH, setSceneH] = useState(0);
 
   const current = SLIDES[step]!;
   const last = step === SLIDES.length - 1;
   const compact = height < 700;
+  const artH = Math.round(height * 0.66);
 
   useEffect(() => {
     onboardingStarted();
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then(setReduceMotion)
-      .catch(() => undefined);
   }, []);
 
   // Android back steps through the slides; on the first it leaves the app as usual.
@@ -140,251 +163,363 @@ export default function Discover() {
     setStep(Math.max(0, step - 1));
   };
 
-  const onStage = (e: LayoutChangeEvent) => {
-    const { width: w, height: h } = e.nativeEvent.layout;
-    setStage({ w, h });
-  };
-  const scale = stage.w ? Math.min((stage.w - space.xxl) / MOCK, (stage.h - space.xxl) / MOCK, 1.25) : 0;
-
-  const grow = reduceMotion
-    ? FadeIn.duration(200).reduceMotion(ReduceMotion.Never)
-    : new Keyframe({
-        0: { opacity: 0, transform: [{ scale: 0.95 }] },
-        100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.bezier(0.23, 1, 0.32, 1) },
-      }).duration(280);
-  const words = FadeIn.duration(reduceMotion ? 200 : 240).reduceMotion(ReduceMotion.Never);
+  // A scene taller than the room it has (small phones) shrinks from its bottom edge.
+  const fit = area && sceneH > area ? area / sceneH : 1;
+  const sceneW = Math.min(width - GUTTER * 2, 360);
 
   return (
-    <View style={[s.screen, { paddingTop: insets.top + space.sm, paddingBottom: insets.bottom + space.lg }]} testID="screen-discover">
-      {/* Top: progress, the brand, skip. */}
-      <View style={s.bars} accessibilityRole="progressbar" accessibilityLabel={`Step ${step + 1} of ${SLIDES.length}`}>
-        {SLIDES.map((_, i) => (
-          <View key={i} style={[s.bar, { backgroundColor: i <= step ? c.accent : c.line }]} />
+    <View style={styles.screen} testID="screen-discover">
+      <StatusBar style="light" />
+
+      {/* The artwork: all five stacked, the current one faded in — no blank frame between. */}
+      <View style={[styles.art, { height: artH }]} pointerEvents="none" accessible accessibilityRole="image" accessibilityLabel={current.alt}>
+        {SLIDES.map((slide, i) => (
+          <Art key={i} image={slide.art} shown={i === step} reduceMotion={reduceMotion} />
         ))}
+        <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="dx-discover-fade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={INK} stopOpacity={0.6} />
+              <Stop offset="0.16" stopColor={INK} stopOpacity={0} />
+              <Stop offset="0.55" stopColor={INK} stopOpacity={0} />
+              <Stop offset="0.86" stopColor={INK} stopOpacity={0.9} />
+              <Stop offset="1" stopColor={INK} stopOpacity={1} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#dx-discover-fade)" />
+        </Svg>
       </View>
-      <View style={s.brandRow}>
-        <View style={s.brand}>
-          <Mark size={28} />
-          <T variant="headline">Duebox</T>
+
+      <View style={[styles.column, { paddingTop: insets.top + space.sm, paddingBottom: insets.bottom + space.lg }]}>
+        {/* Top: progress, the brand, skip. */}
+        <View style={styles.bars} accessibilityRole="progressbar" accessibilityLabel={`Step ${step + 1} of ${SLIDES.length}`}>
+          {SLIDES.map((_, i) => (
+            <Segment key={i} filled={i <= step} reduceMotion={reduceMotion} />
+          ))}
         </View>
-        {!last ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Skip"
-            onPress={() => void leave('/(auth)/welcome')}
-            hitSlop={10}
-            style={({ pressed }) => [s.skip, pressed && { opacity: 0.6 }]}
-            testID="discover-skip"
-          >
-            <T variant="callout" tone="muted">
-              Skip
+        <View style={styles.brandRow}>
+          <View style={styles.brand}>
+            <Mark size={28} />
+            <T variant="headline" style={styles.onInk}>
+              Duebox
             </T>
-          </Pressable>
-        ) : (
-          <View style={s.skip} />
-        )}
-      </View>
-
-      {/* The stage: a small piece of the real app. */}
-      <View style={[s.stage, { maxHeight: (width - GUTTER * 2) * 1.1 }]} onLayout={onStage} accessible accessibilityRole="image" accessibilityLabel={current.alt}>
-        {scale ? (
-          <Reanimated.View key={step} entering={grow} style={{ width: MOCK, height: MOCK, transform: [{ scale }] }} pointerEvents="none">
-            <current.Mock />
-          </Reanimated.View>
-        ) : null}
-      </View>
-
-      {/* The words. */}
-      <Reanimated.View key={`copy-${step}`} entering={words} style={s.copy}>
-        <T variant="display" accessibilityRole="header" style={compact ? s.titleCompact : s.title}>
-          {current.title}
-        </T>
-        <T tone="muted" style={s.body}>
-          {current.body}
-        </T>
-      </Reanimated.View>
-
-      <View style={s.spare} />
-
-      {/* The buttons. */}
-      <View style={s.ctaRow}>
-        {step > 0 ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={back}
-            style={({ pressed }) => [s.backButton, pressed && s.pressed]}
-            testID="discover-back"
-          >
-            <Icon name="chevron-left" size={24} color={c.text} />
-          </Pressable>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={last ? 'Get started' : 'Next'}
-          onPress={next}
-          style={({ pressed }) => [s.cta, pressed && s.pressed]}
-          testID="discover-next"
-        >
-          <T variant="headline" style={{ color: c.accentInk }}>
-            {last ? 'Get started' : 'Next'}
-          </T>
-          <Icon name="arrow-right" size={20} color={c.accentInk} />
-        </Pressable>
-      </View>
-      <View style={s.foot}>
-        {last ? (
-          <>
-            <T variant="caption" tone="muted" align="center">
-              Free to start · {TRIAL_DAYS} days of Pro · No card
-            </T>
-            <T
-              variant="callout"
-              tone="brand"
-              align="center"
-              accessibilityRole="link"
-              onPress={() => void leave('/(auth)/sign-in')}
-              suppressHighlighting
-              style={s.signIn}
-              testID="discover-sign-in"
+          </View>
+          {!last ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Skip"
+              onPress={() => void leave('/(auth)/welcome')}
+              hitSlop={10}
+              style={({ pressed }) => [styles.skip, pressed && { opacity: 0.6 }]}
+              testID="discover-skip"
             >
-              I already have an account
+              <T variant="callout" style={styles.onInk}>
+                Skip
+              </T>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {/* The scene, standing at the foot of the artwork. */}
+        <View style={styles.sceneArea} onLayout={(e: LayoutChangeEvent) => setArea(e.nativeEvent.layout.height)} pointerEvents="none">
+          <View
+            key={step}
+            onLayout={(e: LayoutChangeEvent) => setSceneH(e.nativeEvent.layout.height)}
+            style={{ width: sceneW, transform: [{ scale: fit }], transformOrigin: 'bottom' }}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+          >
+            <current.Scene />
+          </View>
+        </View>
+
+        {/* The words. */}
+        <Rise key={`copy-${step}`} dy={10} delay={60} style={styles.copy}>
+          <T variant="display" accessibilityRole="header" style={[styles.onInk, compact ? styles.titleCompact : styles.title]}>
+            {current.title}
+          </T>
+          <T style={styles.body}>{current.body}</T>
+        </Rise>
+
+        {/* The buttons. */}
+        <View style={styles.ctaRow}>
+          {step > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+              onPress={back}
+              style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+              testID="discover-back"
+            >
+              <Icon name="chevron-left" size={24} color="#FFFFFF" />
+            </Pressable>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={last ? 'Get started' : 'Next'}
+            onPress={next}
+            style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
+            testID="discover-next"
+          >
+            <T variant="headline" style={{ color: INK }}>
+              {last ? 'Get started' : 'Next'}
             </T>
-          </>
-        ) : null}
+            <Icon name="arrow-right" size={20} color={INK} />
+          </Pressable>
+        </View>
+        <View style={styles.foot}>
+          {last ? (
+            <>
+              <T variant="caption" align="center" style={{ color: ON_INK_MUTED }}>
+                Free to start · {TRIAL_DAYS} days of Pro · No card
+              </T>
+              <T
+                variant="callout"
+                align="center"
+                accessibilityRole="link"
+                onPress={() => void leave('/(auth)/sign-in')}
+                suppressHighlighting
+                style={styles.signIn}
+                testID="discover-sign-in"
+              >
+                I already have an account
+              </T>
+            </>
+          ) : null}
+        </View>
       </View>
     </View>
   );
 }
 
-/* ── the mocks ──────────────────────────────────────────────────────────────
- * Drawn at MOCK×MOCK on the plum stage with the app's own pieces (DateTile,
- * Avatar, the card surface), so they follow light and dark like the real thing.
- */
+/* ── motion primitives ──────────────────────────────────────────────────── */
 
-/** 1 — the whole loop: the letter, the card it became, the reminder. */
-function LoopMock() {
-  const s = useStyles();
+/** One artwork layer: fades in (and settles from a slight zoom) when it becomes current. */
+function Art({ image, shown, reduceMotion }: { image: number; shown: boolean; reduceMotion: boolean }) {
+  const on = useSharedValue(shown ? 1 : 0);
+  useEffect(() => {
+    on.set(withTiming(shown ? 1 : 0, { duration: reduceMotion ? 200 : shown ? 520 : 360, easing: EASE }));
+  }, [shown, reduceMotion]);
+  const style = useAnimatedStyle(() => ({
+    opacity: on.get(),
+    transform: [{ scale: reduceMotion ? 1 : interpolate(on.get(), [0, 1], [1.05, 1]) }],
+  }));
   return (
-    <View style={[s.mock, { justifyContent: 'center', gap: 2 }]}>
-      <View style={{ alignSelf: 'center', marginBottom: 6 }}>
-        <Letter width={124} lines={4} highlight={2} />
-        <ScanCorners />
-      </View>
-      <Arrow />
-      <MockCard title="Car insurance" sub="Renew with State Farm" amount="$412" due={day(7)} urgency="soon" />
-      <Arrow />
-      <Banner title="Car insurance renews in 7 days" small />
+    <Animated.View style={[StyleSheet.absoluteFill, style]}>
+      <Image source={image} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top" transition={0} />
+    </Animated.View>
+  );
+}
+
+function Segment({ filled, reduceMotion }: { filled: boolean; reduceMotion: boolean }) {
+  const fill = useSharedValue(filled ? 1 : 0);
+  useEffect(() => {
+    fill.set(reduceMotion ? (filled ? 1 : 0) : withTiming(filled ? 1 : 0, { duration: 300, easing: EASE }));
+  }, [filled, reduceMotion]);
+  const style = useAnimatedStyle(() => ({ width: `${fill.get() * 100}%` }));
+  return (
+    <View style={styles.bar}>
+      <Animated.View style={[styles.barFill, style]} />
     </View>
   );
 }
 
-/** 2 — what it saves you from. */
-function ListMock() {
-  const s = useStyles();
+/** A 0 → 1 clock that starts after `delay` ms; Reduce Motion starts it at 1. */
+function useCue(delay: number, duration = 460) {
+  const reduceMotion = useReducedMotion();
+  const p = useSharedValue(reduceMotion ? 1 : 0);
+  useEffect(() => {
+    if (!reduceMotion) p.set(withDelay(delay, withTiming(1, { duration, easing: EASE })));
+  }, []);
+  return p;
+}
+
+/** Enters from below (or above, with a negative dy) and a touch smaller — never from nothing. */
+function Rise({ delay = 0, dy = 18, from = 0.96, children, style }: { delay?: number; dy?: number; from?: number; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const p = useCue(delay);
+  const a = useAnimatedStyle(() => ({
+    opacity: interpolate(p.get(), [0, 0.6], [0, 1], Extrapolation.CLAMP),
+    transform: [{ translateY: (1 - p.get()) * dy }, { scale: from + (1 - from) * p.get() }],
+  }));
+  return <Animated.View style={[style, a]}>{children}</Animated.View>;
+}
+
+/** Springs in from small — for things that "arrive" (avatars, chips). */
+function Pop({ delay = 0, children }: { delay?: number; children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  const p = useSharedValue(reduceMotion ? 1 : 0);
+  useEffect(() => {
+    if (!reduceMotion) p.set(withDelay(delay, withSpring(1, SETTLE)));
+  }, []);
+  const a = useAnimatedStyle(() => ({
+    opacity: interpolate(p.get(), [0, 0.4], [0, 1], Extrapolation.CLAMP),
+    transform: [{ scale: 0.6 + 0.4 * p.get() }],
+  }));
+  return <Animated.View style={a}>{children}</Animated.View>;
+}
+
+/** One soft pulse after `delay` — draws the eye to the thing that matters. */
+function Pulse({ delay, children }: { delay: number; children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  const s = useSharedValue(1);
+  useEffect(() => {
+    if (!reduceMotion) s.set(withDelay(delay, withSequence(withTiming(1.1, { duration: 160, easing: EASE }), withSpring(1, SETTLE))));
+  }, []);
+  const a = useAnimatedStyle(() => ({ transform: [{ scale: s.get() }] }));
+  return <Animated.View style={a}>{children}</Animated.View>;
+}
+
+/* ── the scenes ─────────────────────────────────────────────────────────── */
+
+/** 1 — the loop: the card lifts out of the scan, then the reminder drops in. */
+function LoopScene() {
   return (
-    <View style={[s.mock, { justifyContent: 'center', gap: space.sm }]}>
-      <T variant="caption" allowFontScaling={false} style={{ color: ON_PLUM_MUTED, fontFamily: font.bold, marginLeft: 4 }}>
-        Coming up
-      </T>
-      <MockCard title="Free trial ends" sub="Cancel Streamly" amount="$15.99" due={day(1)} urgency="soon" when="Tomorrow" />
-      <MockCard title="Parking fine" sub="Pay City of Austin" amount="$65" due={day(3)} urgency="soon" when="In 3 days" />
-      <MockCard title="Passport renewal" sub="Submit to State Dept." due={day(21)} urgency="later" when="In 21 days" />
+    <View style={{ gap: space.sm }}>
+      <Rise delay={1000} dy={-22}>
+        <Banner title="Car insurance renews in 7 days" body="$412 · Renew with State Farm" />
+      </Rise>
+      <Rise delay={250} dy={28} from={0.92}>
+        <Card title="Car insurance" sub="Renew with State Farm" amount="$412" due={day(7)} urgency="soon" when="In 7 days" />
+      </Rise>
     </View>
   );
 }
 
-/** 3 — the evidence: the sentence in the letter, tied to the date on the card. */
-function EvidenceMock() {
+/** 2 — the pile becomes a list; the closest one asks for attention. */
+function ListScene() {
+  return (
+    <View style={{ gap: space.sm }}>
+      <Rise delay={150}>
+        <Card title="Trial ends" sub="Cancel Streamly" amount="$15.99" due={day(1)} urgency="soon" when="Tomorrow" pulse={1100} />
+      </Rise>
+      <Rise delay={300}>
+        <Card title="Parking fine" sub="Pay City of Austin" amount="$65" due={day(3)} urgency="soon" when="In 3 days" />
+      </Rise>
+      <Rise delay={450}>
+        <Card title="Passport renewal" sub="Submit to State Dept." due={day(21)} urgency="later" when="In 21 days" />
+      </Rise>
+    </View>
+  );
+}
+
+/** 3 — the thread from the letter's line down to the card, then the line itself under the date. */
+function EvidenceScene() {
   const c = useColors();
-  const s = useStyles();
   const due = day(14);
+  const thread = useCue(150, 520);
+  const threadStyle = useAnimatedStyle(() => ({ transform: [{ scaleY: thread.get() }] }));
   return (
-    <View style={[s.mock, { justifyContent: 'center' }]}>
-      <View style={[s.paper, { padding: space.lg, gap: 7 }]}>
-        <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 12, lineHeight: 16, color: c.text }}>
-          City Water · Account 4471-208
-        </T>
-        <Lines count={2} />
-        <View style={s.quote}>
-          <T allowFontScaling={false} style={{ fontFamily: font.semibold, fontSize: 12.5, lineHeight: 18, color: INK }}>
-            Payment must be received by {longDate(due)}.
-          </T>
+    <View>
+      <Animated.View style={[styles.thread, threadStyle]} />
+      <Rise delay={420} dy={20}>
+        <View style={[styles.card, { flexDirection: 'column', alignItems: 'stretch', gap: space.md, backgroundColor: c.paper }]}>
+          <CardRow title="Water bill" sub="Pay City Water" amount="$86.20" due={due} urgency="later" when="In 14 days" />
+          <Rise delay={900} dy={8} from={0.98}>
+            <View style={[styles.evidence, { backgroundColor: c.accentSoft, borderColor: MARIGOLD }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="file" size={13} color={c.textMuted} />
+                <T variant="caption" allowFontScaling={false} style={{ color: c.textMuted, fontFamily: font.bold, fontSize: 12 }}>
+                  From the letter · line 4
+                </T>
+              </View>
+              <T allowFontScaling={false} style={{ fontFamily: font.semibold, fontSize: 13.5, lineHeight: 19, color: c.text }}>
+                “Payment must be received by {longDate(due)}.”
+              </T>
+            </View>
+          </Rise>
         </View>
-        <Lines count={1} />
-      </View>
-      <View style={s.tether} />
-      <View style={{ gap: 6 }}>
-        <MockCard title="Water bill" sub="Pay City Water" amount="$86.20" due={due} urgency="later" when="In 14 days" />
-        <View style={[s.fromLetter, { backgroundColor: c.accentSoft }]}>
-          <Icon name="file" size={13} color={ON_PLUM_MUTED} />
-          <T variant="caption" allowFontScaling={false} style={{ color: ON_PLUM_MUTED, fontSize: 12 }}>
-            Date from the letter, line 4
-          </T>
-        </View>
-      </View>
+      </Rise>
     </View>
   );
 }
 
-/** 4 — the reminders, 30 → 7 → 1, the front one with its actions. */
-function RemindMock() {
-  const s = useStyles();
+/**
+ * 4 — the reminders arrive like real notifications: 30 days, then 7, then
+ * tomorrow, each pushing the last back into the stack. Then "Mark done" is
+ * pressed and the front one turns to Done.
+ */
+function RemindScene() {
+  const reduceMotion = useReducedMotion();
+  const t = useSharedValue(reduceMotion ? 3 : 0);
+  const done = useSharedValue(reduceMotion ? 1 : 0);
+  useEffect(() => {
+    if (reduceMotion) return;
+    const arrive = (to: number) => withTiming(to, { duration: 420, easing: EASE });
+    t.set(withDelay(200, withSequence(arrive(1), withDelay(380, arrive(2)), withDelay(380, arrive(3)))));
+    done.set(withDelay(2300, withTiming(1, { duration: 260, easing: EASE })));
+  }, []);
   return (
-    <View style={[s.mock, { justifyContent: 'center', gap: space.sm }]}>
-      <View style={{ opacity: 0.6 }}>
-        <Banner title="Car insurance renews in 30 days" small />
-      </View>
-      <View style={{ opacity: 0.8 }}>
-        <Banner title="Car insurance renews in 7 days" small />
-      </View>
-      <Banner title="Car insurance renews tomorrow" actions />
+    <View style={{ height: 150 }}>
+      <StackedBanner t={t} index={0} title="Car insurance renews in 30 days" />
+      <StackedBanner t={t} index={1} title="Car insurance renews in 7 days" />
+      <StackedBanner t={t} index={2} title="Car insurance renews tomorrow" done={done} />
     </View>
   );
 }
 
-/** 5 — the household: two people, each deadline with who handles it. */
-function HouseholdMock() {
-  const c = useColors();
-  const s = useStyles();
+function StackedBanner({ t, index, title, done }: { t: SharedValue<number>; index: number; title: string; done?: SharedValue<number> }) {
+  const card = useAnimatedStyle(() => {
+    const arrived = interpolate(t.get(), [index, index + 1], [0, 1], Extrapolation.CLAMP);
+    const depth = interpolate(t.get(), [index + 1, index + 3], [0, 2], Extrapolation.CLAMP);
+    return {
+      opacity: arrived * (1 - depth * 0.28),
+      transform: [{ translateY: (1 - arrived) * -36 - depth * 12 }, { scale: (0.96 + 0.04 * arrived) * (1 - depth * 0.05) }],
+      transformOrigin: 'top',
+    };
+  });
+  // Once a newer one lands, this one's words fade: the stack shows edges, never two lines on top of each other.
+  const words = useAnimatedStyle(() => ({ opacity: 1 - interpolate(t.get(), [index + 1, index + 1.6], [0, 1], Extrapolation.CLAMP) }));
   return (
-    <View style={[s.mock, { justifyContent: 'center', gap: space.sm }]}>
-      <View style={s.houseHead}>
-        <View style={{ flexDirection: 'row' }}>
-          <View style={s.ring}>
-            <Avatar name="Alex" index={0} size={28} />
+    <Animated.View style={[{ position: 'absolute', left: 0, right: 0, top: 26, zIndex: index }, card]}>
+      <Banner title={title} body="$412 · Renew with State Farm" words={words} done={done} />
+    </Animated.View>
+  );
+}
+
+/** 5 — two people arrive, then the work splits between them. */
+function HouseholdScene() {
+  return (
+    <View style={{ gap: space.sm }}>
+      <View style={styles.houseHead}>
+        <Pop delay={150}>
+          <View style={styles.ring}>
+            <Avatar name="Alex" index={0} size={30} />
           </View>
-          <View style={[s.ring, { marginLeft: -8 }]}>
-            <Avatar name="Sam" index={1} size={28} />
-          </View>
+        </Pop>
+        <View style={{ marginLeft: -10 }}>
+          <Pop delay={300}>
+            <View style={styles.ring}>
+              <Avatar name="Sam" index={1} size={30} />
+            </View>
+          </Pop>
         </View>
-        <T variant="caption" allowFontScaling={false} style={{ flex: 1, color: ON_PLUM_MUTED, fontFamily: font.bold }}>
-          The Riveras · 2 people
-        </T>
-        <View style={[s.invite, { backgroundColor: c.accent }]}>
-          <Icon name="user-plus" size={13} color={c.accentInk} />
-          <T variant="caption" allowFontScaling={false} style={{ color: c.accentInk, fontFamily: font.bold, fontSize: 12 }}>
-            Invite
+        <Rise delay={300} dy={0} style={{ flex: 1 }}>
+          <T variant="callout" allowFontScaling={false} style={{ color: '#FFFFFF', marginLeft: space.sm }}>
+            The Riveras
           </T>
-        </View>
+        </Rise>
+        <Pop delay={1300}>
+          <View style={styles.invite}>
+            <Icon name="user-plus" size={14} color={INK} />
+            <T variant="caption" allowFontScaling={false} style={{ color: INK, fontFamily: font.bold }}>
+              Invite
+            </T>
+          </View>
+        </Pop>
       </View>
-      <MockCard title="Water bill" sub="Alex handles this" amount="$86.20" due={day(5)} urgency="soon" who={{ name: 'Alex', index: 0 }} />
-      <MockCard title="Car registration" sub="Sam handles this" amount="$168" due={day(12)} urgency="later" who={{ name: 'Sam', index: 1 }} />
+      <Rise delay={550}>
+        <Card title="Water bill" sub="Alex handles this" amount="$86.20" due={day(5)} urgency="soon" who={{ name: 'Alex', index: 0 }} />
+      </Rise>
+      <Rise delay={750}>
+        <Card title="Car registration" sub="Sam handles this" amount="$168" due={day(12)} urgency="later" who={{ name: 'Sam', index: 1 }} />
+      </Rise>
     </View>
   );
 }
 
-/* ── mock parts ─────────────────────────────────────────────────────────── */
+/* ── scene parts: the app's own card and notification ───────────────────── */
 
-function MockCard({
-  title,
-  sub,
-  amount,
-  due,
-  urgency,
-  when,
-  who,
-}: {
+interface CardProps {
   title: string;
   sub: string;
   amount?: string;
@@ -392,26 +527,46 @@ function MockCard({
   urgency: Urgency;
   when?: string;
   who?: { name: string; index: number };
-}) {
+  pulse?: number;
+}
+
+function Card(props: CardProps) {
   const c = useColors();
-  const s = useStyles();
   return (
-    <View style={s.card}>
+    <View style={[styles.card, { backgroundColor: c.paper }]}>
+      <CardRow {...props} />
+    </View>
+  );
+}
+
+function CardRow({ title, sub, amount, due, urgency, when, who, pulse }: CardProps) {
+  const c = useColors();
+  const tag = when ? (
+    <View style={[styles.when, { backgroundColor: urgency === 'soon' ? c.accentSoft : c.brandSoft }]}>
+      <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 11.5, lineHeight: 15, color: c.brandInk }}>
+        {when}
+      </T>
+    </View>
+  ) : null;
+  return (
+    <View style={{ flexGrow: 1, flexShrink: 1, flexDirection: 'row', alignItems: 'center', gap: space.md }}>
       <DateTile day={due} urgency={urgency} size={40} />
-      <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-        <T variant="headline" numberOfLines={1} allowFontScaling={false} style={{ fontSize: 15, lineHeight: 20 }}>
-          {title}
-        </T>
+      <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+          <T variant="headline" numberOfLines={1} allowFontScaling={false} style={{ flexShrink: 1, fontSize: 15.5, lineHeight: 20 }}>
+            {title}
+          </T>
+          {tag && pulse ? <Pulse delay={pulse}>{tag}</Pulse> : tag}
+        </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          {who ? <Avatar name={who.name} index={who.index} size={15} /> : null}
-          <T variant="caption" numberOfLines={1} allowFontScaling={false} style={{ flex: 1, color: c.textMuted, fontSize: 12 }}>
-            {when ? <T variant="caption" allowFontScaling={false} style={{ color: c.brandInk, fontFamily: font.bold, fontSize: 12 }}>{`${when} · `}</T> : null}
+          {who ? <Avatar name={who.name} index={who.index} size={16} /> : null}
+          <T variant="caption" numberOfLines={1} allowFontScaling={false} style={{ flex: 1, color: c.textMuted, fontSize: 12.5 }}>
             {sub}
           </T>
         </View>
       </View>
       {amount ? (
-        <T variant="callout" allowFontScaling={false} style={{ fontSize: 14 }}>
+        <T variant="callout" allowFontScaling={false} style={{ fontSize: 15 }}>
           {amount}
         </T>
       ) : null}
@@ -419,138 +574,115 @@ function MockCard({
   );
 }
 
-/** A phone notification, the way Duebox's reminders arrive. */
-function Banner({ title, small, actions }: { title: string; small?: boolean; actions?: boolean }) {
+/** A phone notification, the way Duebox's reminders arrive — with the actions when `done` is wired. */
+function Banner({ title, body, words, done }: { title: string; body: string; words?: React.ComponentProps<typeof Animated.View>['style']; done?: SharedValue<number> }) {
   const c = useColors();
-  const s = useStyles();
   return (
-    <View style={[s.banner, small && { paddingVertical: 10 }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <Mark size={small ? 26 : 30} />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 11, lineHeight: 14, color: c.textMuted, letterSpacing: 0.4 }}>
-              DUEBOX
+    <View style={[styles.banner, { backgroundColor: c.paper }]}>
+      <Animated.View style={words}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Mark size={32} />
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 11, lineHeight: 14, color: c.textMuted, letterSpacing: 0.4 }}>
+                DUEBOX
+              </T>
+              <T allowFontScaling={false} style={{ fontFamily: font.medium, fontSize: 11, lineHeight: 14, color: c.textFaint }}>
+                9:00 AM
+              </T>
+            </View>
+            <T numberOfLines={1} allowFontScaling={false} style={{ fontFamily: font.semibold, fontSize: 14, lineHeight: 19, color: c.text }}>
+              {title}
             </T>
-            <T allowFontScaling={false} style={{ fontFamily: font.medium, fontSize: 11, lineHeight: 14, color: c.textFaint }}>
-              9:00 AM
+            <T numberOfLines={1} allowFontScaling={false} style={{ fontFamily: font.body, fontSize: 12.5, lineHeight: 17, color: c.textMuted }}>
+              {body}
             </T>
           </View>
-          <T numberOfLines={1} allowFontScaling={false} style={{ fontFamily: font.semibold, fontSize: 13.5, lineHeight: 18, color: c.text }}>
-            {title}
+        </View>
+        {done ? <Actions done={done} /> : null}
+      </Animated.View>
+    </View>
+  );
+}
+
+/** Mark done · Snooze; then the press lands and Mark done turns into Done. */
+function Actions({ done }: { done: SharedValue<number> }) {
+  const c = useColors();
+  const press = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(done.get(), [0, 0.35, 1], [1, 0.94, 1]) }],
+  }));
+  const before = useAnimatedStyle(() => ({ opacity: 1 - done.get() }));
+  const after = useAnimatedStyle(() => ({ opacity: done.get() }));
+  return (
+    <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
+      <Animated.View style={[styles.action, { backgroundColor: MARIGOLD }, press]}>
+        <Animated.View style={[styles.actionLabel, before]}>
+          <Icon name="check" size={14} color={INK} strokeWidth={2.6} />
+          <T allowFontScaling={false} style={[styles.actionText, { color: INK }]}>
+            Mark done
           </T>
-          {!small ? (
-            <T numberOfLines={1} allowFontScaling={false} style={{ fontFamily: font.body, fontSize: 12.5, lineHeight: 17, color: c.textMuted }}>
-              $412 · Renew with State Farm
-            </T>
-          ) : null}
+        </Animated.View>
+        <Animated.View style={[styles.actionLabel, StyleSheet.absoluteFill, { backgroundColor: c.good, borderRadius: radius.chip }, after]}>
+          <Icon name="check-circle" size={14} color={c.scheme === 'dark' ? INK : '#FFFFFF'} strokeWidth={2.4} />
+          <T allowFontScaling={false} style={[styles.actionText, { color: c.scheme === 'dark' ? INK : '#FFFFFF' }]}>
+            Done
+          </T>
+        </Animated.View>
+      </Animated.View>
+      <View style={[styles.action, { backgroundColor: c.surfaceSunk }]}>
+        <View style={styles.actionLabel}>
+          <Icon name="clock" size={14} color={c.text} />
+          <T allowFontScaling={false} style={[styles.actionText, { color: c.text }]}>
+            Snooze
+          </T>
         </View>
       </View>
-      {actions ? (
-        <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.md }}>
-          <View style={[s.action, { backgroundColor: c.accent }]}>
-            <Icon name="check" size={14} color={c.accentInk} strokeWidth={2.6} />
-            <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 12.5, lineHeight: 16, color: c.accentInk }}>
-              Mark done
-            </T>
-          </View>
-          <View style={[s.action, { backgroundColor: c.surfaceSunk }]}>
-            <Icon name="clock" size={14} color={c.text} />
-            <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 12.5, lineHeight: 16, color: c.text }}>
-              Snooze
-            </T>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-/** A sheet of paper with grey text lines; one line marigold where the date is. */
-function Letter({ width, lines, highlight }: { width: number; lines: number; highlight: number }) {
-  const s = useStyles();
-  return (
-    <View style={[s.paper, { width, padding: 12, gap: 6, transform: [{ rotate: '-3deg' }] }]}>
-      {Array.from({ length: lines }, (_, i) => (
-        <View
-          key={i}
-          style={[s.line, { width: i === 0 ? '45%' : i === lines - 1 ? '60%' : '100%' }, i === highlight && { backgroundColor: '#F2B33D', height: 7 }]}
-        />
-      ))}
-    </View>
-  );
-}
-
-function Lines({ count }: { count: number }) {
-  const s = useStyles();
-  return (
-    <>
-      {Array.from({ length: count }, (_, i) => (
-        <View key={i} style={[s.line, { width: i === count - 1 ? '70%' : '100%' }]} />
-      ))}
-    </>
-  );
-}
-
-/** The camera's frame around the letter. */
-function ScanCorners() {
-  const s = useStyles();
-  return (
-    <View style={s.corners} pointerEvents="none">
-      <View style={[s.corner, { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 8 }]} />
-      <View style={[s.corner, { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 8 }]} />
-      <View style={[s.corner, { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 8 }]} />
-      <View style={[s.corner, { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 8 }]} />
-    </View>
-  );
-}
-
-function Arrow() {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Icon name="chevron-down" size={16} color={ON_PLUM_MUTED} strokeWidth={2.4} />
     </View>
   );
 }
 
 /* ── styles ─────────────────────────────────────────────────────────────── */
 
-const useStyles = makeStyles((c) => ({
-  screen: { flex: 1, backgroundColor: c.ground, paddingHorizontal: GUTTER, gap: space.md },
+const LIFT = '0px 14px 34px rgba(10, 4, 18, 0.45)';
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: INK },
+  art: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+  column: { flex: 1, paddingHorizontal: GUTTER, gap: space.md },
+  onInk: { color: '#FFFFFF' },
+
   bars: { flexDirection: 'row', gap: 4 },
-  bar: { flex: 1, height: 4, borderRadius: 2 },
+  bar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.24)', overflow: 'hidden' },
+  barFill: { height: 4, borderRadius: 2, backgroundColor: MARIGOLD },
   brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  skip: { minWidth: 56, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
-
-  // Grows first (1000 : 1 against the spare room) until capped, then the spare room takes the rest.
-  stage: {
-    flexGrow: 1000,
-    flexShrink: 1,
-    flexBasis: 0,
-    minHeight: 220,
-    backgroundColor: PLUM,
-    borderRadius: radius.hero,
-    borderCurve: 'continuous',
-    alignItems: 'center',
+  skip: {
+    minHeight: 36,
     justifyContent: 'center',
-    overflow: 'hidden',
+    paddingHorizontal: space.lg,
+    borderRadius: radius.chip,
+    backgroundColor: 'rgba(30,18,41,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
   },
 
-  spare: { flexGrow: 1 },
-  copy: { gap: space.sm, paddingTop: space.sm, minHeight: 112 },
-  title: { fontSize: 30, lineHeight: 36 },
-  titleCompact: { fontSize: 26, lineHeight: 31 },
-  body: { fontSize: 17, lineHeight: 24 },
+  sceneArea: { flex: 1, minHeight: 160, alignItems: 'center', justifyContent: 'flex-end' },
 
-  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.sm },
+  copy: { gap: space.sm, paddingTop: space.md, minHeight: 116 },
+  title: { fontSize: 31, lineHeight: 37 },
+  titleCompact: { fontSize: 26, lineHeight: 31 },
+  body: { color: ON_INK_MUTED, fontSize: 17, lineHeight: 24 },
+
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.xs },
   backButton: {
     width: 56,
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: c.surfaceSunk,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   cta: {
     flex: 1,
@@ -560,54 +692,38 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
     gap: space.sm,
     borderRadius: radius.chip,
-    backgroundColor: c.accent,
+    backgroundColor: MARIGOLD,
   },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-  foot: { minHeight: 52, gap: space.xs, justifyContent: 'center' },
-  signIn: { paddingVertical: space.xs },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.97 }] },
+  foot: { minHeight: 50, gap: space.xs, justifyContent: 'center' },
+  signIn: { color: '#FFFFFF', paddingVertical: space.xs, textDecorationLine: 'underline' },
 
-  // Mocks
-  mock: { width: MOCK, height: MOCK },
+  // Scene parts
   card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
     padding: space.md,
-    borderRadius: radius.tile,
+    borderRadius: radius.tile + 2,
     borderCurve: 'continuous',
-    backgroundColor: c.paper,
+    boxShadow: LIFT,
   },
-  banner: {
-    padding: space.md,
-    borderRadius: radius.card,
-    borderCurve: 'continuous',
-    backgroundColor: c.paper,
-  },
-  action: {
-    flex: 1,
-    height: 32,
+  when: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.chip },
+  banner: { padding: space.md, borderRadius: radius.card, borderCurve: 'continuous', boxShadow: LIFT },
+  action: { flex: 1, height: 34, borderRadius: radius.chip, overflow: 'hidden' },
+  actionLabel: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  actionText: { fontFamily: font.bold, fontSize: 13, lineHeight: 17 },
+  thread: { alignSelf: 'center', width: 3, height: 34, borderRadius: 2, backgroundColor: MARIGOLD, transformOrigin: 'top', marginBottom: -2 },
+  evidence: { gap: 4, padding: space.md, borderRadius: radius.input, borderCurve: 'continuous', borderLeftWidth: 3 },
+  houseHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
+    marginBottom: 2,
+    padding: 6,
+    paddingRight: 6,
     borderRadius: radius.chip,
+    backgroundColor: 'rgba(30,18,41,0.72)',
   },
-  paper: { backgroundColor: c.paper, borderRadius: radius.input, borderCurve: 'continuous' },
-  line: { height: 6, borderRadius: 3, backgroundColor: c.line },
-  quote: { backgroundColor: '#F2B33D', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, marginHorizontal: -6 },
-  tether: { width: 3, height: 18, borderRadius: 2, backgroundColor: '#F2B33D', alignSelf: 'center' },
-  fromLetter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.chip,
-  },
-  corners: { position: 'absolute', top: -10, left: -12, right: -12, bottom: -10 },
-  corner: { position: 'absolute', width: 18, height: 18, borderColor: '#F2B33D' },
-  houseHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, paddingHorizontal: 4, marginBottom: 2 },
-  ring: { borderRadius: 99, borderWidth: 2, borderColor: PLUM },
-  invite: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.chip },
-}));
+  ring: { borderRadius: 99, borderWidth: 2, borderColor: INK },
+  invite: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.chip, backgroundColor: MARIGOLD },
+});

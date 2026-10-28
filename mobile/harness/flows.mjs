@@ -128,7 +128,7 @@ const FLOWS = [
     name: 'discover: five slides → Get started → welcome, flag set',
     async run() {
       await open('/discover', { signedIn: false, onboarded: false });
-      await see('Snap a letter. Never miss it.');
+      await see('Never miss a due date.');
       await click('discover-next');
       await see('No more late fees.');
       await click('discover-next');
@@ -150,7 +150,7 @@ const FLOWS = [
     name: 'discover: Skip goes straight to welcome',
     async run() {
       await open('/discover', { signedIn: false, onboarded: false });
-      await see('Snap a letter. Never miss it.');
+      await see('Never miss a due date.');
       await click('discover-skip');
       await see('remember the date');
     },
@@ -159,7 +159,7 @@ const FLOWS = [
     name: 'first launch routes to the pitch; later launches to welcome',
     async run() {
       await open('/', { signedIn: false, onboarded: false });
-      await see('Snap a letter. Never miss it.');
+      await see('Never miss a due date.');
       await open('/', { signedIn: false, onboarded: true });
       await see('remember the date');
     },

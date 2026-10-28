@@ -45,7 +45,7 @@ const SESSION = {
 
 /** `expect` names words only the WORKING screen has — stub data, not titles. */
 const SCREENS = [
-  { path: '/discover', name: '01-discover', anonymous: true, settle: 1200, expect: ['Snap a letter. Never miss it.', 'Skip'] },
+  { path: '/discover', name: '01-discover', anonymous: true, settle: 1200, expect: ['Never miss a due date.', 'Skip'] },
   { path: '/setup', name: '05-setup', settle: 1200, expect: ['What usually slips through?', 'Insurance', 'Continue'] },
   { path: '/offer', name: '06-offer', settle: 1600, storage: { 'duebox.harnessStore': '1' }, expect: ['days of Pro have started', '$27.99', 'Restore purchases'] },
   { path: '/(auth)/welcome', name: '02-welcome', anonymous: true, expect: ['remember the date', 'Continue with email'] },
