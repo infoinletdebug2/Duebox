@@ -3,12 +3,12 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/context';
 import { api } from '../../src/api/client';
-import { makeStyles, radius, space } from '../../src/theme/tokens';
+import { font, makeStyles, radius, space, useColors } from '../../src/theme/tokens';
 import { Screen, Header } from '../../src/ui/Screen';
-import { HeroBanner } from '../../src/ui/HeroBanner';
 import { T } from '../../src/ui/Text';
-import { Button } from '../../src/ui/Button';
-import { Field, Segmented, PasswordField } from '../../src/ui/Controls';
+import { Button, Press } from '../../src/ui/Button';
+import { Icon, type IconName } from '../../src/ui/Icon';
+import { Field, FieldTone, Segmented, PasswordField } from '../../src/ui/Controls';
 import { useToast } from '../../src/ui/Sheet';
 import { FormMessage } from '../../src/account/AuthShell';
 import { formErrors } from '../../src/account/forms';
@@ -22,6 +22,9 @@ import { formErrors } from '../../src/account/forms';
  * what they added). Proof before destruction: a password account re-enters
  * its password; an Apple / Google account types DELETE. A wrong password is
  * shown under the field and changes nothing.
+ *
+ * Fits a small phone without scrolling: the warning, what goes as three
+ * lines, the fine print, export, and the proof — the button pinned below.
  */
 type Mode = 'password' | 'social';
 
@@ -29,6 +32,7 @@ export default function DeleteAccount() {
   const router = useRouter();
   const toast = useToast();
   const s = useStyles();
+  const c = useColors();
   const { household, isOwner, signOut } = useAuth();
   const [mode, setMode] = useState<Mode>('password');
   const [password, setPassword] = useState('');
@@ -55,10 +59,25 @@ export default function DeleteAccount() {
     }
   };
 
+  // What goes, in three short lines instead of a paragraph.
+  const goes: { icon: IconName; text: string }[] = !household
+    ? [{ icon: 'user', text: 'Your Duebox sign-in and profile' }]
+    : isOwner
+      ? [
+          { icon: 'calendar-clock', text: 'Every deadline and reminder' },
+          { icon: 'file', text: 'Every scanned page, photo and PDF' },
+          { icon: 'users', text: `${household.name}, for everyone in it` },
+        ]
+      : [
+          { icon: 'user', text: 'Your sign-in — you leave the household' },
+          { icon: 'home', text: `${household.name} and its deadlines stay with the owner` },
+        ];
+
   return (
     <Screen
       form
-      header={<Header />}
+      header={<Header title="Delete account" />}
+      contentStyle={{ gap: space.lg }}
       testID="screen-delete"
       footer={
         <View style={{ gap: space.sm }}>
@@ -67,38 +86,46 @@ export default function DeleteAccount() {
         </View>
       }
     >
-      <HeroBanner
-        art="delete"
-        tone="danger"
-        eyebrow="Delete account"
-        title="Delete your account"
-        lead="Read what goes before you confirm — it can’t be brought back."
-        chips={[{ icon: 'alert', label: 'Can’t be undone' }, { icon: 'download', label: 'Export first if you need it' }]}
-      />
-      <View style={{ gap: space.sm }}>
-        {household && isOwner ? (
-          <T tone="muted">
-            This deletes {household.name} for everyone in it, including any members you invited: every deadline and reminder, every scanned page, photo and PDF, and
-            everything read from them.
+      <View style={s.warn}>
+        <View style={[s.warnIcon, { backgroundColor: c.criticalSoft }]}>
+          <Icon name="warning" size={22} color={c.critical} />
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <T variant="title" accessibilityRole="header">
+            This can’t be undone
           </T>
-        ) : null}
-        {household && !isOwner ? (
-          <T tone="muted">
-            You’ll leave {household.name} and your sign-in is deleted. The household and its deadlines stay with the owner.
+          <T variant="caption" tone="muted">
+            Deleting removes, for good:
           </T>
-        ) : null}
-        {!household ? <T tone="muted">This deletes your Duebox sign-in and profile.</T> : null}
+        </View>
       </View>
 
-      <View style={s.facts}>
-        <T variant="callout">It can’t be undone.</T>
-        <T variant="caption" tone="muted">
-          Your data disappears from the app straight away. Every record and every stored image is permanently erased from our systems, including backups, within 30 days. An active App Store or Google Play subscription isn’t cancelled by deleting — cancel it in your store account settings.
+      <View style={s.list}>
+        {goes.map((g) => (
+          <View key={g.text} style={s.row}>
+            <Icon name={g.icon} size={18} color={c.critical} />
+            <T variant="callout" style={{ flex: 1 }}>
+              {g.text}
+            </T>
+          </View>
+        ))}
+        <T variant="caption" tone="faint" style={{ marginTop: space.xs }}>
+          Erased from our systems, backups included, within 30 days. A store subscription isn’t cancelled by this — cancel it in your App Store or Google Play settings.
         </T>
-        <Button label="Export my data first" tone="secondary" icon="download" small onPress={() => router.push('/settings/export')} testID="delete-export" />
       </View>
 
-      <View style={{ gap: space.md }}>
+      <Press onPress={() => router.push('/settings/export')} accessibilityRole="link" style={s.export} testID="delete-export">
+        <Icon name="download" size={18} color={c.brandInk} />
+        <T variant="callout" tone="brand" style={{ flex: 1, fontFamily: font.semibold }}>
+          Export my data first
+        </T>
+        <Icon name="chevron-right" size={18} color={c.textFaint} />
+      </Press>
+
+      <View style={{ gap: space.sm }}>
+        <T variant="caption" tone="muted">
+          Confirm it’s you
+        </T>
         <Segmented<Mode>
           options={[
             { value: 'password', label: 'I use a password' },
@@ -110,41 +137,59 @@ export default function DeleteAccount() {
             setError(null);
           }}
         />
+        <FieldTone.Provider value="raised">
         {mode === 'password' ? (
           <PasswordField
+            bare
             label="Your password"
             value={password}
             onChangeText={setPassword}
             autoComplete="current-password"
             textContentType="password"
             returnKeyType="done"
-            hint="To confirm it’s really you."
             error={errors.fields.password}
             testID="delete-password"
           />
         ) : (
           <Field
+            bare
             label="Type DELETE to confirm"
             value={typed}
             onChangeText={setTyped}
             autoCapitalize="characters"
             autoCorrect={false}
-            placeholder="DELETE"
             returnKeyType="done"
             error={errors.fields.password}
             testID="delete-confirmation"
           />
         )}
+        </FieldTone.Provider>
       </View>
     </Screen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  facts: {
-    backgroundColor: c.criticalSoft,
-    borderRadius: radius.group,
+  warn: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingTop: space.xs },
+  warnIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  list: {
+    gap: space.md,
     padding: space.lg,
-    gap: space.sm,
+    borderRadius: radius.group,
+    borderCurve: 'continuous',
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.line,
+  },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  export: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    minHeight: 48,
+    paddingHorizontal: space.lg,
+    borderRadius: radius.group,
+    borderCurve: 'continuous',
+    backgroundColor: c.brandSoft,
   },
 }));
