@@ -7,6 +7,7 @@ import { PRO, PRODUCT_IDS, TRIAL_DAYS, appleStore, googleStore, billing, forgetE
 import { requireHousehold, requireOwner } from '../middleware';
 import { householdRow } from '../services';
 import { netValueFor, trackServerEvent } from '../meta';
+import { capturePosthog } from '../posthog';
 import { handleError } from '../errors';
 
 /**
@@ -80,6 +81,10 @@ export const billingRouter = defineRouter({
       const productId = (record as { productId?: string }).productId ?? '';
       const net = netValueFor(c, productId);
       trackServerEvent(c, { userId: uid, eventName: 'Subscribe', eventId, value: net.value, currency: net.currency });
+      // A Play restore replays owned purchases through here (`restore: true`): already counted once.
+      if (body.restore !== true) {
+        capturePosthog(c, 'purchase_completed', uid, { type: 'subscription', product_id: productId, platform, value: net.value, currency: net.currency });
+      }
       return ok(c, await planPayload(c, await householdRow(c)));
     });
 
@@ -103,7 +108,10 @@ export const billingRouter = defineRouter({
       const started = await startTrialOnce(c, uid);
       const plan = await planPayload(c, await householdRow(c));
       if (!started && !plan.isTrial) return fail(c, 'CONFLICT', 'This account has already used its free trial.', 409);
-      if (started) trackServerEvent(c, { userId: uid, eventName: 'StartTrial', eventId: `trial-${uid}` });
+      if (started) {
+        trackServerEvent(c, { userId: uid, eventName: 'StartTrial', eventId: `trial-${uid}` });
+        capturePosthog(c, 'trial_started', uid, { trial_days: TRIAL_DAYS(c), via: 'retry' });
+      }
       return ok(c, plan);
     });
 

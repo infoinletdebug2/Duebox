@@ -273,13 +273,17 @@ export async function purchase(productId: string): Promise<Plan> {
   return plan;
 }
 
-/** Hand one purchase to the server and take back the plan it grants. */
-async function verify(result: Purchase): Promise<Plan> {
+/**
+ * Hand one purchase to the server and take back the plan it grants.
+ * `restore` marks a Play replay, so the server does not count it as a new sale.
+ */
+async function verify(result: Purchase, restore = false): Promise<Plan> {
   if (Platform.OS === 'ios') {
     const ios = result as PurchaseIOS;
     return api.post<Plan>('/billing/verify', {
       platform: 'apple',
       transactionId: ios.transactionId ?? ios.id,
+      ...(restore ? { restore: true } : {}),
     });
   }
   const android = result as PurchaseAndroid;
@@ -287,6 +291,7 @@ async function verify(result: Purchase): Promise<Plan> {
     platform: 'google',
     productId: android.productId,
     purchaseToken: android.purchaseToken,
+    ...(restore ? { restore: true } : {}),
   });
 }
 
@@ -320,7 +325,7 @@ export async function restore(): Promise<Plan | null> {
 
   let plan: Plan | null = null;
   for (const owned of list) {
-    plan = await verify(owned).catch(() => plan);
+    plan = await verify(owned, true).catch(() => plan);
   }
   return plan;
 }

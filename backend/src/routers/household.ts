@@ -25,8 +25,9 @@ import {
 } from '../lib';
 import { appScheme, inviteDays, maxMembers } from '../config';
 import { requireHousehold, requireOwner, assertHouseholdSharing } from '../middleware';
-import { startTrialOnce } from '../billing';
+import { TRIAL_DAYS, startTrialOnce } from '../billing';
 import { trackServerEvent } from '../meta';
+import { capturePosthog } from '../posthog';
 import { CATEGORIES } from '../logic/extract';
 import { householdRow, rawRows, replanHousehold, transaction } from '../services';
 import { type MemberRow, memberWire } from '../rows';
@@ -80,7 +81,10 @@ export const householdRouter = defineRouter({
       if (hour?.ok && hour.value !== Number(before.remind_hour)) await replanHousehold(c, await householdRow(c));
 
       const trialStarted = await startTrialOnce(c, userId(c));
-      if (trialStarted) trackServerEvent(c, { userId: userId(c), eventName: 'StartTrial', eventId: `trial-${userId(c)}` });
+      if (trialStarted) {
+        trackServerEvent(c, { userId: userId(c), eventName: 'StartTrial', eventId: `trial-${userId(c)}` });
+        capturePosthog(c, 'trial_started', userId(c), { trial_days: TRIAL_DAYS(c), via: 'setup' });
+      }
       const email = (await sdk(c).auth.me(bearer(c))).email;
       return ok(c, { ...(await mePayload(c, userId(c), email)), trialStarted });
     });
