@@ -2,25 +2,26 @@ import { useRef, useState } from 'react';
 import { View, type TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/context';
-import { space } from '../../src/theme/tokens';
-import { Field } from '../../src/ui/Controls';
+import { font, space } from '../../src/theme/tokens';
+import { Field, PasswordField } from '../../src/ui/Controls';
 import { Button } from '../../src/ui/Button';
 import { T } from '../../src/ui/Text';
-import { AuthLink, AuthShell, FormMessage } from '../../src/account/AuthShell';
+import { AuthLink, AuthShell, FormMessage, OrDivider } from '../../src/account/AuthShell';
 import { SocialButtons } from '../../src/account/SocialButtons';
 import { formErrors, looksLikeEmail } from '../../src/account/forms';
 import { routeAfterAuth } from '../../src/account/pendingJoin';
 import { signedIn } from '../../src/lib/analytics';
 
 /**
- * SIGN IN (SCREENS #2, FR-A1). Email + password in a card; Apple / Google
- * underneath for the people who came in that way. A wrong password is one
- * sentence above the button — never which half was wrong.
+ * SIGN IN (SCREENS #2, FR-A1). The same order as sign-up — Apple / Google,
+ * "or with email", the form — so the two read as one pair. A wrong password
+ * is one sentence above the button — never which half was wrong.
  */
 export default function SignIn() {
   const router = useRouter();
   const { signIn } = useAuth();
   const passwordRef = useRef<TextInput>(null);
+  const [hasSocial, setHasSocial] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [pending, setPending] = useState(false);
@@ -54,28 +55,32 @@ export default function SignIn() {
       lead="Your deadlines are where you left them."
       hero={{ art: 'auth', eyebrow: 'Sign in' }}
       testID="screen-sign-in"
-      below={<AuthLink lead="New here?" label="Create an account" onPress={() => router.replace('/(auth)/sign-up')} />}
+      below={<AuthLink lead="New here?" label="Create an account" onPress={() => router.replace('/(auth)/sign-up')} testID="sign-in-to-sign-up" />}
     >
+      <SocialButtons onBusy={setPending} onLoaded={(list) => setHasSocial(list.length > 0)} />
+      {hasSocial ? <OrDivider /> : null}
       <Field
         label="Email"
         value={email}
         onChangeText={setEmail}
+        placeholder="you@example.com"
         autoCapitalize="none"
+        autoCorrect={false}
         autoComplete="email"
         keyboardType="email-address"
         textContentType="emailAddress"
         returnKeyType="next"
+        submitBehavior="submit"
         onSubmitEditing={() => passwordRef.current?.focus()}
         error={local.email ?? server.fields.email}
         testID="sign-in-email"
       />
-      <View style={{ gap: space.xs }}>
-        <Field
+      <View>
+        <PasswordField
           ref={passwordRef}
           label="Password"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
           autoComplete="current-password"
           textContentType="password"
           returnKeyType="go"
@@ -84,18 +89,19 @@ export default function SignIn() {
           testID="sign-in-password"
         />
         <T
-          variant="caption"
+          variant="callout"
           tone="brand"
           accessibilityRole="link"
           onPress={() => router.push({ pathname: '/(auth)/forgot-password', params: email ? { email } : {} })}
-          style={{ alignSelf: 'flex-end', paddingVertical: space.sm, fontFamily: 'Manrope_600SemiBold' }}
+          suppressHighlighting
+          style={{ alignSelf: 'flex-end', paddingVertical: space.md, paddingLeft: space.lg, fontFamily: font.semibold }}
+          testID="sign-in-forgot"
         >
           Forgot password?
         </T>
       </View>
       <FormMessage message={server.general} />
       <Button label="Sign in" onPress={() => void submit()} loading={pending} testID="sign-in-submit" />
-      <SocialButtons onBusy={setPending} />
     </AuthShell>
   );
 }
