@@ -10,7 +10,7 @@ import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Feedback';
 import { FormMessage } from './AuthShell';
 import { routeAfterAuth } from './pendingJoin';
-import { registrationCompleted } from '../lib/analytics';
+import { registrationCompleted, signedIn } from '../lib/analytics';
 
 /**
  * Apple and Google (FR-A1). Which buttons exist is asked, not assumed:
@@ -64,6 +64,7 @@ export function SocialButtons({
       const me = await signInWithProvider(provider);
       // A brand-new account lands with setup still to do.
       if (me?.needsSetup) registrationCompleted(provider);
+      else if (me) signedIn(provider);
       await routeAfterAuth(router);
     } catch (failure) {
       if (!(failure instanceof SocialCancelled)) setError(messageOf(failure));

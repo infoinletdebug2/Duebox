@@ -101,6 +101,15 @@ export const META_ENABLED =
   (Constants.expoConfig?.extra as { metaEnabled?: boolean } | undefined)?.metaEnabled === true;
 
 /**
+ * PostHog: the one shared fleet project every app sends to; `app: 'duebox'`
+ * on every event tells them apart (lib/posthog.ts). The phc_ token is
+ * write-only and public by design, so it is built in; the env only overrides
+ * it, and an empty value does not turn it off.
+ */
+export const POSTHOG_TOKEN = str(process.env.EXPO_PUBLIC_POSTHOG_TOKEN, 'phc_kCdWSEDneUZ7QQrBR6jrKqhabvGEbviJzaCKrqZnDavm');
+export const POSTHOG_HOST = str(process.env.EXPO_PUBLIC_POSTHOG_HOST, 'https://us.i.posthog.com');
+
+/**
  * List prices (USD), for showing the value when the store cannot answer —
  * Expo Go, the web, a store hiccup. Display only: a purchase always goes
  * through the store at the store's own price. Must match the store listing.

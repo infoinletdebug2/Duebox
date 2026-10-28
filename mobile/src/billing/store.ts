@@ -3,7 +3,7 @@ import type { Purchase, PurchaseIOS, PurchaseAndroid } from 'react-native-iap';
 import { api } from '../api/client';
 import type { Plan } from '../types';
 import { IS_EXPO_GO, OFFER_IDS, PRODUCT_IDS } from '../config';
-import { purchaseCompleted } from '../lib/analytics';
+import { purchaseCompleted, purchaseEnded, purchaseStarted } from '../lib/analytics';
 
 /**
  * react-native-iap is loaded LAZILY, and that is not an optimisation.
@@ -210,6 +210,7 @@ export async function purchase(productId: string): Promise<Plan> {
   const IAP = await loadIap();
   if (!IAP) throw new Error('Purchases are not available in this build.');
 
+  purchaseStarted(productId);
   const result = await new Promise<Purchase>((resolve, reject) => {
     let settled = false;
 
@@ -259,6 +260,9 @@ export async function purchase(productId: string): Promise<Plan> {
         ),
       );
     });
+  }).catch((failure: unknown) => {
+    purchaseEnded(productId, failure instanceof PurchaseCancelled);
+    throw failure;
   });
 
   const plan = await verify(result);

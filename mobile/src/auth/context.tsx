@@ -4,6 +4,7 @@ import { api, ApiError, bindSession } from '../api/client';
 import { clearSession, loadSession, saveSession } from './storage';
 import { signInWith, signInWithBrowser, type SocialProvider } from './social';
 import { unregisterPush } from '../notifications/push';
+import { resetUser } from '../lib/analytics';
 import type { AuthResult, Household, Me, Plan, Prefs, Role, Session } from '../types';
 
 /**
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setMe(null);
         // Everything cached belongs to the person who just left.
         queryClient.clear();
+        resetUser();
       }
     },
     [queryClient],

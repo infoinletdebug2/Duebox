@@ -4,30 +4,43 @@ import Constants from 'expo-constants';
 import { api } from '../api/client';
 import { META_ENABLED } from '../config';
 import { initMeta, logMetaEvent, logMetaPurchase, metaAnonymousId, requestMetaTracking, type TrackingStatus } from './meta';
+import { capture, identify, initPosthog, reset, screen } from './posthog';
 
 /**
- * Product analytics and Meta ads measurement — the ONE entry point.
+ * Product analytics (PostHog) and Meta ads measurement — the ONE entry point.
  *
  *   1. **Never throws.** Measurement must never break sign-up, a purchase or a save.
- *   2. **No-op until configured.** With `EXPO_PUBLIC_META_APP_ID` /
- *      `EXPO_PUBLIC_META_CLIENT_TOKEN` empty (the shipped default) nothing
- *      leaves the phone. See `app.config.ts`.
+ *   2. **PostHog is on; Meta is a no-op until configured.** PostHog is the
+ *      shared fleet project (`lib/posthog.ts`, off on the web). With
+ *      `EXPO_PUBLIC_META_APP_ID` / `EXPO_PUBLIC_META_CLIENT_TOKEN` empty (the
+ *      shipped default) nothing goes to Meta. See `app.config.ts`.
  *   3. **No personal data.** Parameters carry counts, flags and product ids —
  *      never a name, an email, a deadline title or anything read from a letter.
+ *      PostHog knows a person by account id only.
  *
- * | Function              | Meta event                         | Where |
- * |-----------------------|------------------------------------|-------|
- * | appOpened             | (SDK auto: fb_mobile_activate_app) | root layout |
- * | onboardingStarted     | onboarding_started                 | discovery pitch mounts |
- * | onboardingCompleted   | fb_mobile_tutorial_completion      | pitch → Get started / Skip |
- * | registrationCompleted | fb_mobile_complete_registration    | sign-up / first social sign-in |
- * | setupCompleted        | setup_completed                    | two-tap setup done |
- * | trialStarted          | StartTrial                         | setup started the 7-day trial |
- * | offerViewed           | offer_viewed                       | welcome offer opens |
- * | coreActionCompleted   | core_action_completed              | FIRST deadline saved (once per install) |
- * | paywallViewed         | paywall_viewed                     | paywall, non-subscriber |
- * | purchaseCompleted     | Subscribe + fb_mobile_purchase     | after /billing/verify |
- * | reviewPrompt          | review_prompt_*                    | the review sheet |
+ * | Function              | PostHog event                  | Meta event                         | Where |
+ * |-----------------------|--------------------------------|------------------------------------|-------|
+ * | appOpened             | (SDK: Application Opened)      | (SDK auto: fb_mobile_activate_app) | root layout |
+ * | screenViewed          | $screen (route pattern)        | —                                  | root layout |
+ * | identifyUser          | identify (account id)          | —                                  | root layout, once signed in |
+ * | resetUser             | reset                          | —                                  | sign-out |
+ * | onboardingStarted     | onboarding_started             | onboarding_started                 | discovery pitch mounts |
+ * | onboardingCompleted   | onboarding_completed           | fb_mobile_tutorial_completion      | pitch → Get started / Skip |
+ * | registrationCompleted | signed_up                      | fb_mobile_complete_registration    | sign-up / first social sign-in |
+ * | signedIn              | signed_in                      | —                                  | sign-in, returning social sign-in |
+ * | setupCompleted        | setup_completed                | setup_completed                    | two-tap setup done |
+ * | trialStarted          | — (server: trial_started)      | StartTrial                         | setup started the 7-day trial |
+ * | offerViewed           | offer_viewed                   | offer_viewed                       | welcome offer opens |
+ * | coreActionCompleted   | deadline_saved (every save)    | —                                  | scan confirmed / manual save |
+ * |                       | core_action_completed (once)   | core_action_completed              | FIRST deadline saved on this install |
+ * | paywallViewed         | paywall_viewed                 | paywall_viewed                     | paywall, non-subscriber |
+ * | purchaseStarted       | purchase_started               | —                                  | the store sheet opens |
+ * | purchaseEnded         | purchase_cancelled / _failed   | —                                  | the store sheet closes without buying |
+ * | purchaseCompleted     | — (server: purchase_completed) | Subscribe + fb_mobile_purchase     | after /billing/verify |
+ * | reviewPrompt          | review_prompt_*                | review_prompt_*                    | the review sheet |
+ *
+ * Whether a trial or a purchase is real is only known on the server, so
+ * PostHog gets those from there (`backend/src/posthog.ts`), never from here.
  *
  * `StartTrial` and `Subscribe` are ALSO sent by the server (Conversions API,
  * `backend/src/meta.ts`), deduplicated by event id, so they stay attributable
@@ -52,9 +65,25 @@ function safe(run: () => void | Promise<void>): void {
 }
 
 export function appOpened(): void {
+  safe(() => initPosthog());
   safe(() => {
     if (META_ENABLED) initMeta();
   });
+}
+
+/** Route pattern only ("item/[id]"), never the id. */
+export function screenViewed(name: string): void {
+  safe(() => screen(name));
+}
+
+/** The signed-in account, by id. The server sends its events under the same id. */
+export function identifyUser(userId: string): void {
+  safe(() => identify(userId));
+}
+
+/** Signed out: the next person on this phone starts fresh. */
+export function resetUser(): void {
+  safe(() => reset());
 }
 
 /** The iOS tracking prompt — after the pitch, never on a cold first frame or over a form. */
@@ -70,18 +99,26 @@ export async function requestTracking(): Promise<TrackingStatus> {
 }
 
 export function onboardingStarted(): void {
+  safe(() => capture('onboarding_started'));
   safe(() => logMetaEvent('onboarding_started'));
 }
 
 export function onboardingCompleted(slidesSeen: number): void {
+  safe(() => capture('onboarding_completed', { slides_seen: slidesSeen }));
   safe(() => logMetaEvent('fb_mobile_tutorial_completion', { fb_success: 1, slides_seen: slidesSeen }));
 }
 
 export function registrationCompleted(method: 'email' | 'apple' | 'google'): void {
+  safe(() => capture('signed_up', { method }));
   safe(() => logMetaEvent('fb_mobile_complete_registration', { fb_registration_method: method }));
 }
 
+export function signedIn(method: 'email' | 'apple' | 'google'): void {
+  safe(() => capture('signed_in', { method }));
+}
+
 export function setupCompleted(focusCount: number, remindHour: number): void {
+  safe(() => capture('setup_completed', { focus_count: focusCount, remind_hour: remindHour }));
   safe(() => logMetaEvent('setup_completed', { focus_count: focusCount, remind_hour: remindHour }));
 }
 
@@ -98,20 +135,27 @@ export function trialStarted(trialDays: number, userId: string | null | undefine
 }
 
 export function offerViewed(hasDiscount: boolean): void {
+  safe(() => capture('offer_viewed', { discount: hasDiscount }));
   safe(() => logMetaEvent('offer_viewed', { discount: hasDiscount ? 1 : 0 }));
 }
 
-/** The first deadline saved — the "got to real use" signal. Once per install. */
+/**
+ * A deadline saved (every time), then — the first time on this install —
+ * `core_action_completed`, the "got to real use" signal ads optimise towards.
+ * Someone who saves forty deadlines is one person who got what they came for.
+ */
 export function coreActionCompleted(source: 'scan' | 'manual'): void {
+  safe(() => capture('deadline_saved', { source }));
   safe(async () => {
-    if (!META_ENABLED) return;
     if (await AsyncStorage.getItem(KEYS.firstDeadline).catch(() => null)) return;
     await AsyncStorage.setItem(KEYS.firstDeadline, String(Date.now())).catch(() => undefined);
+    capture('core_action_completed', { action: 'deadline_saved', source });
     logMetaEvent('core_action_completed', { action: 'deadline_saved', source });
   });
 }
 
 export function paywallViewed(reason: string): void {
+  safe(() => capture('paywall_viewed', { reason }));
   safe(() => logMetaEvent('paywall_viewed', { reason }));
 }
 
@@ -130,7 +174,18 @@ export function purchaseCompleted(productId: string, period: 'monthly' | 'yearly
   });
 }
 
+/** The store sheet opens. Whether it became a real purchase is the server's purchase_completed. */
+export function purchaseStarted(productId: string): void {
+  safe(() => capture('purchase_started', { product_id: productId }));
+}
+
+/** The store sheet closed without a purchase: the person backed out, or the store failed. */
+export function purchaseEnded(productId: string, cancelled: boolean): void {
+  safe(() => capture(cancelled ? 'purchase_cancelled' : 'purchase_failed', { product_id: productId }));
+}
+
 export function reviewPrompt(event: 'shown' | 'rate' | 'later', trigger: string): void {
+  safe(() => capture(`review_prompt_${event}`, { trigger }));
   safe(() => logMetaEvent(`review_prompt_${event}`, { trigger }));
 }
 

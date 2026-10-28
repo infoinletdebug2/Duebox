@@ -10,6 +10,7 @@ import { AuthLink, AuthShell, FormMessage } from '../../src/account/AuthShell';
 import { SocialButtons } from '../../src/account/SocialButtons';
 import { formErrors, looksLikeEmail } from '../../src/account/forms';
 import { routeAfterAuth } from '../../src/account/pendingJoin';
+import { signedIn } from '../../src/lib/analytics';
 
 /**
  * SIGN IN (SCREENS #2, FR-A1). Email + password in a card; Apple / Google
@@ -39,6 +40,7 @@ export default function SignIn() {
     setError(null);
     try {
       await signIn(email.trim().toLowerCase(), password);
+      signedIn('email');
       await routeAfterAuth(router);
     } catch (failure) {
       setError(failure);
