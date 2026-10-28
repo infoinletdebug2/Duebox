@@ -29,7 +29,7 @@
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#2E1A47"
+        "backgroundColor": "#2D154A"
       },
       "permissions": ["CAMERA", "POST_NOTIFICATIONS"],
       "softwareKeyboardLayoutMode": "resize"

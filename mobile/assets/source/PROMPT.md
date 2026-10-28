@@ -1,14 +1,16 @@
 # Duebox icon
 
-Current master: `mark.svg` (vector, matches `Mark` in `src/ui/artwork.tsx`).
+Current master (2026-10-28): `master.png`, the "envelope clock": a warm-white
+envelope whose flap carries two plum clock hands meeting at a marigold dot, on
+plum. Picked by the owner from nine Codex concepts (`design/logo/`: prompts in
+`logos-r1.tsv` / `logos.tsv`, script `gen.sh`; the concept PNGs stay local).
+`mark.svg` is its flat vector twin, the same drawing as `Mark` in
+`src/ui/artwork.tsx`; it is what the app draws at 32–52 px.
 
-Optional AI master (same flow as Clearbill — `google/gemini-3-pro-image-preview` via OpenRouter):
+Prompt (Codex image tool, via `design/logo/gen.sh`):
 
-> Design a premium iOS app icon for "Duebox", a calm app that reads letters and reminds you before deadlines.
-> Square 1024x1024, full-bleed, NO rounded corners, NO text.
-> Concept: a single white paper card, straight, with a marigold (#F2B33D) folded top-right corner and a bold deep-plum check mark,
-> on a deep plum background (#4A2F6E to #24133A diagonal gradient), one soft light from the upper-left, a soft shadow under the card.
-> Style: modern, minimal, geometric, slightly dimensional, readable at 40px. No people, no frames.
+> An envelope seen from the front; its triangular flap is drawn as the hands of a clock pointing up and to the right, with a small marigold dot at the clock centre. One bold continuous shape, white envelope on the plum background.
+> + the shared style in `gen.sh`: square 1024, full bleed, no text, plum #4A2F6E→#24133A, marigold #F2B33D sparingly, warm white, minimal, readable at 40px.
 
 Regenerate every size: `node assets/source/render-raster.mjs`.
 

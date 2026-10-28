@@ -31,7 +31,11 @@ function usePalette() {
   };
 }
 
-/** The app mark: plum square, a white card with a marigold folded corner and a check. */
+/**
+ * The app mark: plum square, a warm-white envelope whose flap carries two plum
+ * clock hands meeting at a marigold dot. Flat twin of assets/source/master.png
+ * (assets/source/mark.svg is the same drawing).
+ */
 export function Mark({ size = 40 }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64" accessibilityLabel="Duebox" accessibilityRole="image">
@@ -42,9 +46,12 @@ export function Mark({ size = 40 }: { size?: number }) {
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="64" height="64" rx="15" fill="url(#dx-mark-bg)" />
-      <Path d="M17 15 H40 L48 23 V47 a3 3 0 0 1 -3 3 H17 a3 3 0 0 1 -3 -3 V18 a3 3 0 0 1 3 -3 Z" fill="#FFFFFF" />
-      <Path d="M40 15 V20 a3 3 0 0 0 3 3 H48 Z" fill="#F2B33D" />
-      <Path d="M21.5 34 L27.5 40 L39.5 27.5" stroke="#2E1A47" strokeWidth={4.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Rect x="11.5" y="17.5" width="42" height="31" rx="5.5" fill="#000000" opacity={0.2} />
+      <Rect x="10" y="16" width="44" height="31" rx="5.5" fill="#FBF8F3" />
+      <Path d="M11.5 45.5 L26 33.5 M52.5 45.5 L38 33.5" stroke="#E2DAE8" strokeWidth={1.4} strokeLinecap="round" />
+      <Path d="M12 18.5 L29.6 34.6 Q32 36.6 34.4 34.6 L52 18.5" stroke="#E2DAE8" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Path d="M25.5 26 L32 31.6 L44.5 20" stroke="#2E1A47" strokeWidth={3.8} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Circle cx="32" cy="31.6" r="3" fill="#F2B33D" stroke="#2E1A47" strokeWidth={0.8} />
     </Svg>
   );
 }

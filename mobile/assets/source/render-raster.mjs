@@ -1,7 +1,7 @@
 /**
- * Build every icon from the vector master (mark.svg — the same drawing as
- * `Mark` in src/ui/artwork.tsx: a white card with a marigold corner and a
- * check, on plum). An AI-generated master can replace it (PROMPT.md).
+ * Build every icon from master.png (the Codex-generated envelope-clock, full
+ * bleed on plum; design/logo/out/1-envelope-clock.png). mark.svg is its flat
+ * vector twin, the same drawing as `Mark` in src/ui/artwork.tsx.
  *
  *   node assets/source/render-raster.mjs
  *
@@ -14,15 +14,18 @@
 import { spawn } from 'node:child_process';
 import { readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const OUT = join(HERE, '..');
 const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9336;
-const master = `data:image/svg+xml;base64,${(await readFile(join(HERE, 'mark.svg'))).toString('base64')}`;
+const master = `data:image/png;base64,${(await readFile(join(HERE, 'master.png'))).toString('base64')}`;
 
-const img = (size, style = '') => `<img src="${master}" style="display:block;width:${size}px;height:${size}px;${style}">`;
+// The pages load the master by file URL: a 1.7 MB PNG inlined as a data URL
+// pushes the page URL past Chrome's 2 MB limit and every capture comes out blank.
+const masterFile = pathToFileURL(join(HERE, 'master.png')).href;
+const img = (size, style = '') => `<img src="${masterFile}" style="display:block;width:${size}px;height:${size}px;${style}">`;
 const JOBS = [
   { out: 'icon.png', size: 1024, alpha: false, body: img(1024) },
   { out: 'store-icon-512.png', size: 512, alpha: false, body: img(512) },
@@ -66,8 +69,10 @@ try {
     const html = `<!doctype html><html style="overflow:hidden"><body style="margin:0;overflow:hidden;background:transparent">${job.body}</body></html>`;
     await page('Emulation.setDeviceMetricsOverride', { width: job.size, height: job.size, deviceScaleFactor: 1, mobile: false });
     await page('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: job.alpha ? 0 : 1 } });
-    await page('Page.navigate', { url: `data:text/html;base64,${Buffer.from(html).toString('base64')}` });
-    await wait(500);
+    const pageFile = join(HERE, '.chrome', 'page.html');
+    await writeFile(pageFile, html);
+    await page('Page.navigate', { url: pathToFileURL(pageFile).href });
+    await wait(800);
     const shot = await page('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: job.size, height: job.size, scale: 1 } });
     await writeFile(join(OUT, job.out), Buffer.from(shot.data, 'base64'));
     console.log(`  ✓ ${job.out}`);

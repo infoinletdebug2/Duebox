@@ -21,3 +21,6 @@ mobile/assets/art-src/
 
 # website build output
 website/dist/
+
+# logo concept renders (large); the chosen one is mobile/assets/source/master.png
+design/logo/out/
