@@ -45,9 +45,10 @@ export default function SignUp() {
     setPending(true);
     setError(null);
     try {
-      await register({ name: name.trim().slice(0, 80), email: email.trim().toLowerCase(), password });
+      const { codeSent } = await register({ name: name.trim().slice(0, 80), email: email.trim().toLowerCase(), password });
       registrationCompleted('email');
-      router.replace('/(auth)/verify');
+      // No first code went out: the verify screen asks for one itself, so nobody waits on an email that never comes.
+      router.replace(codeSent ? '/(auth)/verify' : { pathname: '/(auth)/verify', params: { send: '1' } });
     } catch (failure) {
       setError(failure);
       setPending(false);

@@ -31,7 +31,8 @@ interface AuthValue {
   needsOffer: boolean;
 
   signIn(email: string, password: string): Promise<Me | null>;
-  register(input: { email: string; password: string; name?: string }): Promise<Me | null>;
+  /** `codeSent: false` means the first verification email did not go out; the verify screen asks again. */
+  register(input: { email: string; password: string; name?: string }): Promise<{ me: Me | null; codeSent: boolean }>;
   signInWithProvider(provider: SocialProvider): Promise<Me | null>;
   completeSocialSignIn(code: string): Promise<Me | null>;
   signOut(): Promise<void>;
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const adopt = useCallback(
     async (next: AuthResult) => {
-      const { needsSetup: _n, needsVerification: _v, ...plain } = next;
+      const { needsSetup: _n, needsVerification: _v, codeSent: _c, ...plain } = next;
       applySession(plain);
       return refresh();
     },
@@ -129,13 +130,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async (input: { email: string; password: string; name?: string }) =>
-      adopt(
-        await api.anonymous.post<AuthResult>('/auth/register', {
-          ...input,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        }),
-      ),
+    async (input: { email: string; password: string; name?: string }) => {
+      const result = await api.anonymous.post<AuthResult>('/auth/register', {
+        ...input,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      // An older server leaves codeSent out; it did send, as it always tried to.
+      return { me: await adopt(result), codeSent: result.codeSent !== false };
+    },
     [adopt],
   );
 

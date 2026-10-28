@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, type TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../src/auth/context';
 import { api, fieldErrors, messageOf } from '../../src/api/client';
 import { space } from '../../src/theme/tokens';
@@ -18,11 +18,15 @@ import { routeAfterAuth } from '../../src/account/pendingJoin';
  *
  * The code submits itself on the sixth digit. Resend waits out the server's
  * own cooldown (60 s from sign-up, then whatever `retryAfterSeconds` says).
+ *
+ * `?send=1`: sign-up's first code did not go out, so this screen asks for it
+ * once on arrival — the same call as "Send a new code".
  */
 const LENGTH = 6;
 
 export default function Verify() {
   const router = useRouter();
+  const { send } = useLocalSearchParams<{ send?: string }>();
   const toast = useToast();
   const { session, markVerified } = useAuth();
   const inputRef = useRef<TextInput>(null);
@@ -62,19 +66,35 @@ export default function Verify() {
     }
   };
 
-  const resend = async () => {
+  const resend = async (quiet = false) => {
     setResending(true);
     setError(null);
     try {
       const result = await api.post<{ sent: boolean; retryAfterSeconds: number }>('/auth/send-code');
-      setCooldown(Math.max(30, result.retryAfterSeconds || 60));
-      toast({ message: 'A new code is on its way.' });
+      if (result.sent) {
+        setCooldown(Math.max(30, result.retryAfterSeconds || 60));
+        if (!quiet) toast({ message: 'A new code is on its way.' });
+      } else {
+        // Throttled or the mail service said no: let them try again soon, and say so.
+        setCooldown(Math.min(60, Math.max(15, result.retryAfterSeconds || 30)));
+        toast({ message: 'We couldn’t send a code just now. Try again in a moment.' });
+      }
     } catch (failure) {
+      setCooldown(0);
       toast({ message: messageOf(failure) });
     } finally {
       setResending(false);
     }
   };
+
+  // Sign-up's first code did not go out: ask once, on arrival.
+  const askedOnArrival = useRef(false);
+  useEffect(() => {
+    if (send !== '1' || askedOnArrival.current) return;
+    askedOnArrival.current = true;
+    void resend(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [send]);
 
   const codeError = error && fieldErrors(error).code ? messageOf(error) : undefined;
   const general = error && !codeError ? messageOf(error) : null;

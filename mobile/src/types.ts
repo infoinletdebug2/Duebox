@@ -35,6 +35,8 @@ export interface Session {
 export interface AuthResult extends Session {
   needsSetup?: boolean;
   needsVerification?: boolean;
+  /** Register only: whether the first verification code actually went out. */
+  codeSent?: boolean;
 }
 
 /* ── household + plan ─────────────────────────────────────────────────── */

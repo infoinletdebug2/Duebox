@@ -200,12 +200,19 @@ export const authRouter = defineRouter({
       const auth = await sdk(c).auth.register({ email: email.value, password, name: display });
       const profile = await ensureProfile(c, auth.user.id, { name: name.ok ? name.value : null });
 
-      // FR-A1: confirm the address with a 6-digit code. Never blocks sign-up.
-      await sdk(c)
+      // FR-A1: confirm the address with a 6-digit code. The platform's register
+      // sends no email of its own, so the first code is asked for here. Never
+      // blocks sign-up; `codeSent: false` tells the app to ask again itself
+      // instead of saying a code is on its way when none is.
+      const codeSent = await sdk(c)
         .auth.sendOtp({ email: email.value, purpose: 'verify_email' })
-        .catch((error) => console.error('otp send failed:', error instanceof Error ? error.message : error));
+        .then(() => true)
+        .catch((error) => {
+          console.error('otp send failed:', error instanceof Error ? error.message : error);
+          return false;
+        });
 
-      return created(c, { ...sessionPayload(auth, profile), needsSetup: true, needsVerification: true });
+      return created(c, { ...sessionPayload(auth, profile), needsSetup: true, needsVerification: true, codeSent });
     });
 
     app.post('/auth/login', strict, async (c) => {
@@ -233,8 +240,15 @@ export const authRouter = defineRouter({
 
     app.post('/auth/send-code', requireAuth, strict, async (c) => {
       const email = (await sdk(c).auth.me(bearer(c))).email;
-      const result = await sdk(c).auth.sendOtp({ email, purpose: 'verify_email' }).catch(() => null);
-      return ok(c, { sent: true, retryAfterSeconds: result?.retryAfterSeconds ?? 60 });
+      // `sent` is the truth: a throttled or failed send says so, and the app
+      // words it as "try again shortly" rather than "a new code is on its way".
+      const result = await sdk(c)
+        .auth.sendOtp({ email, purpose: 'verify_email' })
+        .catch((error) => {
+          console.error('otp resend failed:', error instanceof Error ? error.message : error);
+          return null;
+        });
+      return ok(c, { sent: Boolean(result), retryAfterSeconds: result?.retryAfterSeconds ?? 60 });
     });
 
     app.post('/auth/verify-code', requireAuth, strict, async (c) => {
