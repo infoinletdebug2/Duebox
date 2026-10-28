@@ -21,7 +21,7 @@ const require = createRequire(join(MOBILE, 'package.json'));
 const ts = require('typescript');
 
 /** The app config values the legal screens import — keep in step with mobile/.env. */
-const CONFIG = { SUPPORT_EMAIL: 'contact@infoinlet.com', TRIAL_DAYS: 7 };
+const CONFIG = { SUPPORT_EMAIL: 'contact@infoinlet.com', TRIAL_DAYS: 3 };
 const SUPPORT_EMAIL = CONFIG.SUPPORT_EMAIL;
 const SITE = 'https://duebox.xenition.com';
 const YEAR = new Date().getUTCFullYear();

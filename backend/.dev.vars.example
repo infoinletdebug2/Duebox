@@ -25,7 +25,7 @@ PRO_YEARLY_ID=duebox_pro_yearly
 # one-time welcome offer after setup — same entitlement, discounted store products
 OFFER_MONTHLY_ID=duebox_pro_monthly_offer
 OFFER_YEARLY_ID=duebox_pro_yearly_offer
-TRIAL_DAYS=7
+TRIAL_DAYS=3
 FREE_OPEN_ITEMS=5
 FREE_SCANS=3
 PRO_SCANS=100
