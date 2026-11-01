@@ -51,6 +51,18 @@ COPY = {
         'lines': [[('Every', False), (' deadline,', True)], [('in one place', False)]],
         'ticks': ['Bills, renewals, trials and forms', 'Search and sort by category', 'Repeating ones schedule themselves'],
     },
+    '6-scan': {
+        'lines': [[('Camera, photos', False)], [('or', False), (' PDF', True)]],
+        'ticks': ['Letters, bills, forms and screenshots', 'Up to 5 pages at once', 'Or type it in yourself'],
+    },
+    '7-time': {
+        'lines': [[('Reminders at', False)], [('your', False), (' time', True)]],
+        'ticks': ['Pick the hour that suits you', 'One calm nudge on reminder days', 'Your own timing per deadline'],
+    },
+    '8-privacy': {
+        'lines': [[('Your data,', False)], [('always', True), (' yours', False)]],
+        'ticks': ['Private to your household', 'Export everything, always free', 'Delete your account anytime'],
+    },
 }
 IPAD = {'ipad-1-hero': 'hero-c', 'ipad-2-read': '2-read', 'ipad-3-remind': '3-remind', 'ipad-4-household': '4-household', 'ipad-5-items': '5-items'}
 COPY.update({ipad: COPY[phone] for ipad, phone in IPAD.items()})

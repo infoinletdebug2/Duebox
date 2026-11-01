@@ -40,6 +40,9 @@ store-shots/out/*
 !store-shots/out/3-remind.jpg
 !store-shots/out/4-household.jpg
 !store-shots/out/5-items.jpg
+!store-shots/out/6-scan.jpg
+!store-shots/out/7-time.jpg
+!store-shots/out/8-privacy.jpg
 !store-shots/out/ipad-*.jpg
 
 # a run of the old (pre-hard-paywall) curl suite; not a valid result
