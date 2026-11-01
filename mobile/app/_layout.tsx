@@ -76,6 +76,11 @@ const PUBLIC = new Set(['(auth)', 'auth', 'legal', 'discover']);
  */
 const UNLOCKED = new Set(['paywall', 'legal', 'settings', 'setup', '(auth)', 'auth', 'join', 'discover']);
 
+/** Widest the app column gets on an iPad; phones are always narrower. */
+const MAX_APP_WIDTH = 720;
+/** Full-bleed plum screens: their side margins on an iPad are plum too. */
+const DARK_SCREENS = new Set(['discover', 'setup']);
+
 function AppShell() {
   const { loading, session, household, me, needsSubscription, refresh } = useAuth();
   const c = useColors();
@@ -159,8 +164,14 @@ function AppShell() {
 
   if (loading) return <View style={{ flex: 1, backgroundColor: c.brand }} />;
 
+  // iPad and wide windows: every screen is laid out for a phone, so the app
+  // sits in a centred column instead of stretching rows edge to edge. The
+  // full-bleed plum screens get plum margins so the column doesn't show.
+  const darkScreen = DARK_SCREENS.has(segments[0] ?? '');
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.ground }}>
+    <View style={{ flex: 1, alignItems: 'center', backgroundColor: darkScreen ? c.brand : c.ground }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: MAX_APP_WIDTH }}>
       <StatusBar style={c.scheme === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.ground }, animation: 'slide_from_right' }}>
         <Stack.Screen name="index" />
@@ -175,6 +186,7 @@ function AppShell() {
         <Stack.Screen name="notifications-permission" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
       </Stack>
       <ReviewPrompt />
+      </View>
     </View>
   );
 }

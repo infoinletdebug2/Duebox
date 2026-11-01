@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Duebox",
+    "name": "Due Meld",
     "slug": "duebox",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "duebox",
+    "scheme": "duemeld",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "backgroundColor": "#F5F3F8",
@@ -15,17 +15,18 @@
       "resizeMode": "contain"
     },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "app.duebox.mobile",
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "bundleIdentifier": "com.infoinlet.duemeld",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Duebox uses the camera to scan letters and bills so it can find their deadlines.",
-        "NSPhotoLibraryUsageDescription": "Duebox lets you choose photos of letters and bills so it can find their deadlines.",
+        "NSCameraUsageDescription": "Due Meld uses the camera to scan letters and bills so it can find their deadlines.",
+        "NSPhotoLibraryUsageDescription": "Due Meld lets you choose photos of letters and bills so it can find their deadlines.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "app.duebox.mobile",
+      "package": "com.infoinlet.duemeld",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -55,8 +56,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Duebox uses the camera to scan letters and bills so it can find their deadlines.",
-          "photosPermission": "Duebox lets you choose photos of letters and bills so it can find their deadlines."
+          "cameraPermission": "Due Meld uses the camera to scan letters and bills so it can find their deadlines.",
+          "photosPermission": "Due Meld lets you choose photos of letters and bills so it can find their deadlines."
         }
       ],
       "expo-document-picker",
