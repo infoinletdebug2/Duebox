@@ -5,7 +5,7 @@ import type { EnvReader } from './config';
 import type { Role } from './rows';
 
 /**
- * Shared helpers for Duebox's routers. The job is to make the SAFE thing
+ * Shared helpers for Due Meld's routers. The job is to make the SAFE thing
  * the easy thing.
  *
  * There is no row-level security on this platform: every query runs with the

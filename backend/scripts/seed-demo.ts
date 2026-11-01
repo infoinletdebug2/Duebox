@@ -34,7 +34,7 @@ const [member] = await sql<{ id: string; household_id: string; role: string }>(
   `SELECT id, household_id, role FROM dx__member WHERE lower(email) = lower($1::text) AND removed_at IS NULL LIMIT 1`,
   [email],
 );
-if (!member) throw new Error(`No Duebox account for ${email} — sign up in the app first.`);
+if (!member) throw new Error(`No Due Meld account for ${email} — sign up in the app first.`);
 const hh = member.household_id;
 
 /* ── remove previous demo rows ───────────────────────────────────────────── */

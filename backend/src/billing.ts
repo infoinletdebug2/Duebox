@@ -6,7 +6,7 @@ import { maxMembers, proEntitlement, productIds, proScans, trialDays } from './c
 import { todayIn } from './logic/dates';
 
 /**
- * Duebox Pro — a hard paywall (SRS FR-B1…B5, CONTRACT §3).
+ * Due Meld Pro — a hard paywall (SRS FR-B1…B5, CONTRACT §3).
  *
  * There is no free tier and no server-granted trial: a household is either
  * entitled through a store subscription verified here, or locked. The free

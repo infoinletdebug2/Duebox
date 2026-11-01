@@ -26,7 +26,7 @@ export default function SubscriptionStatus() {
 
   const manage = () => {
     const url = plan?.platform === 'google' || (!plan?.platform && Platform.OS === 'android') ? 'https://play.google.com/store/account/subscriptions' : 'https://apps.apple.com/account/subscriptions';
-    void Linking.openURL(url).catch(() => toast({ message: `Open Subscriptions in your ${storeName} account to manage Duebox.` }));
+    void Linking.openURL(url).catch(() => toast({ message: `Open Subscriptions in your ${storeName} account to manage Due Meld.` }));
   };
 
   const long = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '');
@@ -39,11 +39,11 @@ export default function SubscriptionStatus() {
     : plan.isTrial
       ? plan.willRenew
         ? `Your free trial ends ${long(plan.trialEndsAt)}. Your first charge is that day, unless you cancel at least 24 hours before.`
-        : `Your free trial ends ${long(plan.trialEndsAt)} and won’t renew — you’ve cancelled. Duebox locks after that, and your deadlines stay saved.`
+        : `Your free trial ends ${long(plan.trialEndsAt)} and won’t renew — you’ve cancelled. Due Meld locks after that, and your deadlines stay saved.`
       : plan.status === 'grace'
-        ? `Your last payment didn’t go through. Update your payment method in your ${storeName} account to keep Duebox open.`
+        ? `Your last payment didn’t go through. Update your payment method in your ${storeName} account to keep Due Meld open.`
         : !plan.willRenew && plan.expiresAt
-          ? `Cancelled — Duebox stays open until ${long(plan.expiresAt)}. Renew anytime to keep your reminders.`
+          ? `Cancelled — Due Meld stays open until ${long(plan.expiresAt)}. Renew anytime to keep your reminders.`
           : plan.renewsAt
             ? `Renews ${long(plan.renewsAt)}. Thank you.`
             : 'Everything unlocked for everyone in your household.';
@@ -53,7 +53,7 @@ export default function SubscriptionStatus() {
       <HeroBanner
         art="subscription"
         eyebrow="Your plan"
-        title={plan?.isTrial ? 'Duebox Pro · free trial' : period ? `Duebox Pro · ${period}` : 'Duebox Pro'}
+        title={plan?.isTrial ? 'Due Meld Pro · free trial' : period ? `Due Meld Pro · ${period}` : 'Due Meld Pro'}
         lead={lead}
         chips={[
           { icon: 'check', label: 'Unlimited deadlines' },
@@ -83,7 +83,7 @@ export default function SubscriptionStatus() {
       )}
       <Button label="Restore purchases" tone="quiet" onPress={() => router.push('/paywall')} />
       <T variant="caption" tone="faint" align="center">
-        If your subscription ends, Duebox locks and reminders stop — nothing is deleted, and you can export or delete your data anytime from Account.
+        If your subscription ends, Due Meld locks and reminders stop — nothing is deleted, and you can export or delete your data anytime from Account.
       </T>
     </Screen>
   );

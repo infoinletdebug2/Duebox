@@ -7,7 +7,7 @@ import { longDate, mediumDate } from './dates';
  * (CONTRACT §0.6: enum values never reach the UI as text).
  */
 
-/** Duebox is US-first: every amount is shown in US dollars. */
+/** Due Meld is US-first: every amount is shown in US dollars. */
 const currency = 'USD';
 
 /** Kept for callers; amounts are always USD. */

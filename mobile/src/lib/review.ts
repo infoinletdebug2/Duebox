@@ -9,12 +9,12 @@ import { reviewPrompt } from './analytics';
  *
  * ## The flow
  *
- * At two moments of real value a small Duebox sheet rises
+ * At two moments of real value a small Due Meld sheet rises
  * (`ui/ReviewPrompt.tsx`): what just happened, one sentence of why a rating
- * helps, and **Rate Duebox** / **Not now**.
+ * helps, and **Rate Due Meld** / **Not now**.
  *
  *   1. `first_scan` — right after the first scanned letter is saved (the
- *      moment Duebox has just done its main job);
+ *      moment Due Meld has just done its main job);
  *   2. `done` — only for someone who said "Not now" (or never saw the first):
  *      after three deadlines marked done AND three days of use.
  *
@@ -109,7 +109,7 @@ export async function noteDone(): Promise<boolean> {
   return true;
 }
 
-/** "Rate Duebox": the in-app store sheet when available, the listing otherwise. */
+/** "Rate Due Meld": the in-app store sheet when available, the listing otherwise. */
 export async function rateNow(trigger: ReviewTrigger): Promise<void> {
   reviewPrompt('rate', trigger);
   await write(KEYS.rated, String(Date.now()));
@@ -133,7 +133,7 @@ export function canOpenStoreListing(): boolean {
   return Platform.OS === 'ios' ? APPLE_APP_ID.length > 0 : ANDROID_PACKAGE.length > 0;
 }
 
-/** The manual "Rate Duebox" row — no quota, it is just a link. */
+/** The manual "Rate Due Meld" row — no quota, it is just a link. */
 export async function openStoreListing(): Promise<void> {
   const url =
     Platform.OS === 'ios'

@@ -11,8 +11,8 @@ import { Icon, type IconName } from '../ui/Icon';
  * hard paywall Home is only ever seen subscribed, so there are four states:
  *   trial      → "Free trial · 2 days left"   "First charge Jan 4" (or "Ends Jan 4" once cancelled)
  *   grace      → "Payment problem"            "Update your payment method"   (warm)
- *   cancelled  → "Duebox Pro"                 "Ends Jan 4"                   (warm)
- *   renewing   → "Duebox Pro"                 "Renews Jan 4"
+ *   cancelled  → "Due Meld Pro"                 "Ends Jan 4"                   (warm)
+ *   renewing   → "Due Meld Pro"                 "Renews Jan 4"
  * A member (not the owner) sees the same card; Subscription explains that
  * only the owner manages it.
  */
@@ -41,15 +41,15 @@ export function PlanCard() {
   } else if (plan.status === 'grace') {
     icon = 'alert';
     title = 'Payment problem';
-    sub = 'Update your payment method to keep Duebox';
+    sub = 'Update your payment method to keep Due Meld';
     action = 'Fix';
     warm = true;
   } else if (!plan.willRenew && plan.expiresAt) {
-    title = 'Duebox Pro';
+    title = 'Due Meld Pro';
     sub = `Ends ${short(plan.expiresAt)} — renew to keep reminders`;
     warm = true;
   } else {
-    title = 'Duebox Pro';
+    title = 'Due Meld Pro';
     sub = plan.renewsAt ? `Renews ${short(plan.renewsAt)}` : 'Every deadline, for your whole household';
   }
 

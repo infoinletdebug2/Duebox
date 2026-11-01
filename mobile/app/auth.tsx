@@ -10,7 +10,7 @@ import { T } from '../src/ui/Text';
 import { space } from '../src/theme/tokens';
 
 /**
- * Where a brokered sign-in lands when the OS delivers `duebox://auth?code=…`
+ * Where a brokered sign-in lands when the OS delivers `duemeld://auth?code=…`
  * as an ordinary deep link (Android, or a cold start). The code is single-use
  * and lives two minutes; the ref guard stops React's development double-run
  * from spending it twice.

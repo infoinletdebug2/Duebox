@@ -15,7 +15,7 @@ import { FormMessage } from '../../src/account/AuthShell';
 import { rememberJoin } from '../../src/account/pendingJoin';
 
 /**
- * JOIN A HOUSEHOLD (SCREENS nav, FR-A3) — where `duebox://join/<code>` lands.
+ * JOIN A HOUSEHOLD (SCREENS nav, FR-A3) — where `duemeld://join/<code>` lands.
  *
  * Shows whose household it is before anything happens; one tap joins as a
  * member. Signed out, the code is parked first (pendingJoin) and the
@@ -89,7 +89,7 @@ export default function Join() {
             Join {invite.householdName}
           </T>
           <T tone="muted">
-            {invite.invitedBy ? `${invite.invitedBy} invited you to share deadlines and reminders on Duebox.` : 'You’ve been invited to share this household’s deadlines on Duebox.'}
+            {invite.invitedBy ? `${invite.invitedBy} invited you to share deadlines and reminders on Due Meld.` : 'You’ve been invited to share this household’s deadlines on Due Meld.'}
           </T>
         </View>
         <Facts />
@@ -169,7 +169,7 @@ function InviteProblem({ error, onRetry, onLeave }: { error: unknown; onRetry: (
         : error.status === 404
           ? { title: 'That invite isn’t valid', message: 'The link may be incomplete, or the invite was cancelled. Ask for a new one.' }
           : { title: 'That invite didn’t work', message: messageOf(error) };
-  return <EmptyState art={<HouseholdArt size={140} />} title={copy.title} message={copy.message} actionLabel="Continue to Duebox" onAction={onLeave} />;
+  return <EmptyState art={<HouseholdArt size={140} />} title={copy.title} message={copy.message} actionLabel="Continue to Due Meld" onAction={onLeave} />;
 }
 
 const useStyles = makeStyles((c) => ({

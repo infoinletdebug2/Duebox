@@ -327,7 +327,7 @@ function InviteSheet({ visible, householdName, onClose }: { visible: boolean; ho
 
   const share = async (inv: Invite) => {
     try {
-      await Share.share({ message: `Join ${householdName} on Duebox so we can share deadlines and reminders: ${inv.link} — or enter code ${inv.code} in the app.` });
+      await Share.share({ message: `Join ${householdName} on Due Meld so we can share deadlines and reminders: ${inv.link} — or enter code ${inv.code} in the app.` });
     } catch (e) {
       setError(messageOf(e));
     }

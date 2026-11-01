@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * Brand the emails the platform sends for Duebox: the sign-up code, the
+ * Brand the emails the platform sends for Due Meld: the sign-up code, the
  * password reset, the email-change code. Xenition sends them, not this
  * worker; with nothing set they go out as "Xenition" in Xenition's gold.
  *
  *   node --env-file=$HOME/.xenition-admin.env deploy/email-branding.mjs
  *
- * Signs in as the account that owns app_duebox (as deploy/xenition.mjs does)
- * and PATCHes /v1/app-manage/app_duebox/email/branding:
- *   fromName    the From name and the wordmark ("Duebox"; plain ASCII)
- *   brandColor  the wordmark / button colour: Duebox plum
+ * Signs in as the account that owns app_duemeld (as deploy/xenition.mjs does)
+ * and PATCHes /v1/app-manage/app_duemeld/email/branding:
+ *   fromName    the From name and the wordmark ("Due Meld"; plain ASCII)
+ *   brandColor  the wordmark / button colour: Due Meld plum
  *   logoUrl     https PNG drawn at 56 px: the worker serves the mark at
  *               /api/v1/brand/logo.png (backend/src/brand-logo.ts), so deploy
  *               the worker before pointing the branding at it.
@@ -17,11 +17,11 @@
  */
 
 const GATEWAY = (process.env.XENITION_GATEWAY ?? 'https://api.xenition.com').replace(/\/$/, '');
-const APP_ID = 'app_duebox';
+const APP_ID = 'app_duemeld';
 const BRANDING = {
-  fromName: 'Duebox',
+  fromName: 'Due Meld',
   brandColor: '#2E1A47',
-  logoUrl: 'https://duebox.xenition.com/api/v1/brand/logo.png',
+  logoUrl: 'https://duemeld.xenition.com/api/v1/brand/logo.png',
 };
 
 const die = (message) => {
@@ -31,7 +31,7 @@ const die = (message) => {
 
 const email = process.env.XENITION_EMAIL;
 const password = process.env.XENITION_PASSWORD;
-if (!email || !password) die('set XENITION_EMAIL and XENITION_PASSWORD (the account that owns app_duebox)');
+if (!email || !password) die('set XENITION_EMAIL and XENITION_PASSWORD (the account that owns app_duemeld)');
 
 const logo = await fetch(BRANDING.logoUrl);
 if (!logo.ok || logo.headers.get('content-type') !== 'image/png') {

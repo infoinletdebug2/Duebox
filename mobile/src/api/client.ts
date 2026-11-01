@@ -3,7 +3,7 @@ import { API_URL } from '../config';
 
 /**
  * The app's only network layer — hand-rolled, no SDK on the phone. Every path
- * is one of Duebox's own worker routes, in its own `{success, data}`
+ * is one of Due Meld's own worker routes, in its own `{success, data}`
  * envelope, and the phone ships no platform credential.
  */
 

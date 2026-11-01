@@ -9,7 +9,7 @@ import { LegalScreen, type LegalSection } from '../../src/account/LegalScreen';
 export const EFFECTIVE = 'October 5, 2026';
 
 export const SUMMARY = [
-  'Duebox helps you remember deadlines. It is a reminder tool, not a guarantee.',
+  'Due Meld helps you remember deadlines. It is a reminder tool, not a guarantee.',
   'Always check the date we read against the letter — you confirm every item before it is saved.',
   'Free has limits; Pro removes them. Subscriptions renew until you cancel in your store account.',
   'Your data is yours. Export or delete it anytime.',
@@ -19,15 +19,15 @@ export const SECTIONS: LegalSection[] = [
   {
     heading: 'Agreement',
     body: [
-      'These terms are an agreement between you and InfoInlet (“we”, “us”) for the Duebox apps and services. By creating an account you agree to them. If you don’t agree, please don’t use Duebox.',
+      'These terms are an agreement between you and InfoInlet (“we”, “us”) for the Due Meld apps and services. By creating an account you agree to them. If you don’t agree, please don’t use Due Meld.',
     ],
   },
   {
-    heading: 'What Duebox does — and doesn’t',
+    heading: 'What Due Meld does — and doesn’t',
     body: [
-      'Duebox reads documents you add, suggests deadlines and sends reminders. Reading is automatic and can be wrong: a date, amount or sender may be misread or missed. You are responsible for checking each item against the original document before you save it, and for meeting your own deadlines.',
-      'Reminders depend on your phone, its notification settings, your connection and third-party services. We do our best to deliver every reminder on time, but we can’t guarantee delivery. Please don’t rely on Duebox as your only record of a critical deadline.',
-      'Duebox is not legal, financial or tax advice.',
+      'Due Meld reads documents you add, suggests deadlines and sends reminders. Reading is automatic and can be wrong: a date, amount or sender may be misread or missed. You are responsible for checking each item against the original document before you save it, and for meeting your own deadlines.',
+      'Reminders depend on your phone, its notification settings, your connection and third-party services. We do our best to deliver every reminder on time, but we can’t guarantee delivery. Please don’t rely on Due Meld as your only record of a critical deadline.',
+      'Due Meld is not legal, financial or tax advice.',
     ],
   },
   {
@@ -41,12 +41,12 @@ export const SECTIONS: LegalSection[] = [
     body: [
       {
         bullets: [
-          'Duebox needs a subscription (Duebox Pro): unlimited deadlines, up to 100 letter reads a month (fair use), custom reminders and a household of up to 5 people. There is no free plan.',
-          'Duebox Pro is an auto-renewing subscription, billed monthly or yearly through the App Store or Google Play at the price the store shows before you confirm.',
+          'Due Meld needs a subscription (Due Meld Pro): unlimited deadlines, up to 100 letter reads a month (fair use), custom reminders and a household of up to 5 people. There is no free plan.',
+          'Due Meld Pro is an auto-renewing subscription, billed monthly or yearly through the App Store or Google Play at the price the store shows before you confirm.',
           `The yearly plan may include a ${TRIAL_DAYS}-day free trial for people who haven’t had one. Your payment method is taken when the trial starts, and the first yearly payment is charged when it ends unless you cancel at least 24 hours before. Any unused portion of a free trial is forfeited when you buy a subscription.`,
           'Your subscription renews at the same price each period unless you cancel at least 24 hours before the period ends, in your App Store or Google Play account settings. Deleting the app does not cancel it.',
           'Refunds are handled by Apple or Google under their policies.',
-          'If your subscription ends, Duebox locks and reminders stop. Nothing you saved is deleted: subscribe again to pick up where you left off, and you can export or delete your data anytime from Account.',
+          'If your subscription ends, Due Meld locks and reminders stop. Nothing you saved is deleted: subscribe again to pick up where you left off, and you can export or delete your data anytime from Account.',
         ],
       },
     ],
@@ -54,13 +54,13 @@ export const SECTIONS: LegalSection[] = [
   {
     heading: 'Your content',
     body: [
-      'You own what you add. You give us permission to store, process and display it only to provide Duebox to you and your household — including sending document images to our AI reading provider as described in the Privacy Policy. Only add documents you have the right to use.',
+      'You own what you add. You give us permission to store, process and display it only to provide Due Meld to you and your household — including sending document images to our AI reading provider as described in the Privacy Policy. Only add documents you have the right to use.',
     ],
   },
   {
     heading: 'Acceptable use',
     body: [
-      'Don’t misuse Duebox: no attempts to access other households’ data, to overload or reverse-engineer the service, or to use it for anything unlawful. We may suspend accounts that do.',
+      'Don’t misuse Due Meld: no attempts to access other households’ data, to overload or reverse-engineer the service, or to use it for anything unlawful. We may suspend accounts that do.',
     ],
   },
   {
@@ -72,7 +72,7 @@ export const SECTIONS: LegalSection[] = [
   {
     heading: 'Liability',
     body: [
-      'Duebox is provided “as is”. To the extent the law allows, we are not liable for indirect or consequential losses, including late fees, penalties or lapsed cover resulting from a missed or misread deadline, and our total liability is limited to what you paid us in the 12 months before the claim. Nothing here limits rights you have under consumer law that cannot be limited.',
+      'Due Meld is provided “as is”. To the extent the law allows, we are not liable for indirect or consequential losses, including late fees, penalties or lapsed cover resulting from a missed or misread deadline, and our total liability is limited to what you paid us in the 12 months before the claim. Nothing here limits rights you have under consumer law that cannot be limited.',
     ],
   },
   {

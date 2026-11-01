@@ -42,7 +42,7 @@ interface InviteRow {
   created_at: string;
 }
 
-/** US dollars only (Duebox is US-first). */
+/** US dollars only (Due Meld is US-first). */
 const CURRENCIES = ['USD'] as const;
 
 /**

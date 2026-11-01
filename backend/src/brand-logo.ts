@@ -1,5 +1,5 @@
 /**
- * The Duebox mark as a 112 px PNG (the app icon, rounded), served at
+ * The Due Meld mark as a 112 px PNG (the app icon, rounded), served at
  * /api/v1/brand/logo.png for the platform's auth emails, which draw it at
  * 56 px above the name. Regenerate from mobile/assets/icon.png when the logo
  * changes; deploy/email-branding.mjs points the email branding at it.

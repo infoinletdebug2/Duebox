@@ -76,7 +76,7 @@ export async function ensureProfile(c: Context, uid: string, seed?: { name?: str
   return row;
 }
 
-/** Duebox is US-first: every amount is in US dollars, whatever the phone's region. */
+/** Due Meld is US-first: every amount is in US dollars, whatever the phone's region. */
 const CURRENCY = 'USD';
 
 /**
@@ -315,7 +315,7 @@ export const authRouter = defineRouter({
 
     /**
      * Brokered browser lane for an installed build: the consent URL, returning
-     * to `duebox://auth` — the only address it hands out. Expo Go's
+     * to `duemeld://auth` — the only address it hands out. Expo Go's
      * `exp://…/--/auth` goes through the relay below instead.
      */
     app.get('/auth/social/:provider/start', strict, async (c) => {
@@ -336,7 +336,7 @@ export const authRouter = defineRouter({
     app.get('/auth/social/:provider/relay', strict, async (c) => {
       const provider = socialProvider(c.req.param('provider'));
       const app = appReturnOf(c, c.req.query('app'));
-      if (!provider || !app) return c.text('This sign-in link is not valid. Go back to Duebox and try again.', 400);
+      if (!provider || !app) return c.text('This sign-in link is not valid. Go back to Due Meld and try again.', 400);
       setCookie(c, RELAY_COOKIE, app, { path: '/api/v1/auth/social', httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 15 * 60 });
       const started = await sdk(c).auth.startSignIn(provider, socialCallbackUrl(env(c)));
       return c.redirect(started.url, 302);
@@ -345,7 +345,7 @@ export const authRouter = defineRouter({
     app.get('/auth/social/callback', (c) => {
       const app = appReturnOf(c, getCookie(c, RELAY_COOKIE));
       deleteCookie(c, RELAY_COOKIE, { path: '/api/v1/auth/social', secure: true });
-      if (!app) return c.text('Sign-in finished. Go back to the Duebox app.', 200);
+      if (!app) return c.text('Sign-in finished. Go back to the Due Meld app.', 200);
       const code = c.req.query('code');
       const back = new URL(app);
       if (code) back.searchParams.set('code', code);
@@ -353,7 +353,7 @@ export const authRouter = defineRouter({
       return c.redirect(back.toString(), 302);
     });
 
-    /** Redeem the one-time code the `duebox://auth` deep link carried. */
+    /** Redeem the one-time code the `duemeld://auth` deep link carried. */
     app.post('/auth/social/complete', strict, async (c) => {
       const body = await jsonBody(c);
       const code = typeof body?.code === 'string' ? body.code.trim() : '';

@@ -2,7 +2,7 @@ import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop, Text a
 import { useColors } from '../theme/tokens';
 
 /**
- * Duebox's drawings (DESIGN-SYSTEM §9, visual-system.md "four rules"):
+ * Due Meld's drawings (DESIGN-SYSTEM §9, visual-system.md "four rules"):
  *   1. one light, from the upper-left, matching the ambient;
  *   2. everything sits on a soft, asymmetric ground ellipse;
  *   3. a lit hairline on the light side;
@@ -38,7 +38,7 @@ function usePalette() {
  */
 export function Mark({ size = 40 }: { size?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 64 64" accessibilityLabel="Duebox" accessibilityRole="image">
+    <Svg width={size} height={size} viewBox="0 0 64 64" accessibilityLabel="Due Meld" accessibilityRole="image">
       <Defs>
         <LinearGradient id="dx-mark-bg" x1="0" y1="0" x2="1" y2="1">
           <Stop offset="0" stopColor="#4A2F6E" />

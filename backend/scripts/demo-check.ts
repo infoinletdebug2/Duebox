@@ -8,7 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const API = `${(process.env.API ?? 'https://duebox.xenition.com').replace(/\/+$/, '')}/api/v1`;
+const API = `${(process.env.API ?? 'https://duemeld.xenition.com').replace(/\/+$/, '')}/api/v1`;
 const EMAIL = process.env.DEMO_EMAIL ?? 'demo@infoinlet.com';
 const PASSWORD = process.env.DEMO_PASSWORD ?? '';
 

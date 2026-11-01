@@ -44,8 +44,8 @@ export const requireSubscription: MiddlewareHandler = async (c, next) => {
     throw new AppError(
       'SUBSCRIPTION_REQUIRED',
       mine.role === 'owner'
-        ? 'Start your Duebox subscription to keep going.'
-        : 'This household’s Duebox subscription has ended. Ask the person who set it up to renew it.',
+        ? 'Start your Due Meld subscription to keep going.'
+        : 'This household’s Due Meld subscription has ended. Ask the person who set it up to renew it.',
       402,
       undefined,
       'subscription_required',

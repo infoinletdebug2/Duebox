@@ -28,14 +28,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   if (metaEnabled) {
     const trackingText =
-      'Duebox uses this to measure which of our ads brought you here. It is never used to show you ads inside Duebox, and your letters and deadlines are never shared.';
+      'Due Meld uses this to measure which of our ads brought you here. It is never used to show you ads inside Due Meld, and your letters and deadlines are never shared.';
     plugins.push(
       [
         'react-native-fbsdk-next',
         {
           appID: appId,
           clientToken,
-          displayName: config.name ?? 'Duebox',
+          displayName: config.name ?? 'Due Meld',
           scheme: `fb${appId}`,
           // Initialised from JS (analytics.appOpened), never on native launch.
           isAutoInitEnabled: false,
@@ -51,7 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: config.name ?? 'Duebox',
+    name: config.name ?? 'Due Meld',
     slug: config.slug ?? 'duebox',
     plugins,
     android: {

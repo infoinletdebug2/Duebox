@@ -65,7 +65,7 @@ export const accountRouter = defineRouter({
         doneBy: nameOf(r.done_by),
         notes: r.notes ?? '',
       }));
-      const filename = `duebox-${stamp}.${format}`;
+      const filename = `duemeld-${stamp}.${format}`;
       c.header('content-disposition', `attachment; filename="${filename}"`);
       if (format === 'json') {
         return c.json({ exportedAt: nowIso(), household: me(c).householdName, currency: me(c).currency, items });

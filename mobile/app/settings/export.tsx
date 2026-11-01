@@ -38,7 +38,7 @@ export default function Export() {
     setDone(null);
     try {
       const url = `${API_URL}/api/v1/export?format=${format}`;
-      const name = `duebox-${localToday()}.${format}`;
+      const name = `duemeld-${localToday()}.${format}`;
       if (Platform.OS === 'web') {
         const res = await fetch(url, { headers: { authorization: `Bearer ${session?.accessToken ?? ''}` } });
         if (!res.ok) throw new Error('The export didn’t download. Try again.');
@@ -55,7 +55,7 @@ export default function Export() {
           await Sharing.shareAsync(res.uri, {
             mimeType: format === 'csv' ? 'text/csv' : 'application/json',
             UTI: format === 'csv' ? 'public.comma-separated-values-text' : 'public.json',
-            dialogTitle: 'Save your Duebox export',
+            dialogTitle: 'Save your Due Meld export',
           });
         }
       }

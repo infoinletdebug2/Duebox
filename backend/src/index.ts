@@ -12,7 +12,7 @@ import { handleError } from './errors';
 import { BRAND_LOGO_PNG_BASE64 } from './brand-logo';
 
 /**
- * Duebox's worker.
+ * Due Meld's worker.
  *
  * `createXenitionApi` is mounted with an EMPTY module list — for its
  * middleware (auth verification, CORS, rate limiting), not its routers,
@@ -24,7 +24,7 @@ const app = new Hono();
 app.notFound(jsonNotFound);
 app.onError(handleError);
 
-app.get('/health', (c) => c.json({ ok: true, app: 'duebox' }));
+app.get('/health', (c) => c.json({ ok: true, app: 'duemeld' }));
 
 /** The mark the platform's auth emails show (deploy/email-branding.mjs). Public, cached for a day. */
 let brandLogo: Uint8Array<ArrayBuffer> | null = null;

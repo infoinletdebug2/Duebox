@@ -144,7 +144,7 @@ export function useConfirmScan(id: string) {
       void qc.invalidateQueries({ queryKey: keys.scan(id) });
       invalidateItems(qc);
       coreActionCompleted('scan');
-      // The review box comes after the first scan: Duebox has just read a letter for them.
+      // The review box comes after the first scan: Due Meld has just read a letter for them.
       void noteFirstScan();
     },
   });

@@ -7,7 +7,7 @@ import { POSTHOG_HOST, POSTHOG_TOKEN } from '../config';
  * PostHog, the shared fleet project (Ay-Rojgar, Desher Kaj, the Meld apps all
  * send to the same one). Only `lib/analytics.ts` imports this.
  *
- *   - Every event carries `app: 'duebox'`, the platform, the app version and
+ *   - Every event carries `app: 'duemeld'`, the platform, the app version and
  *     whether it is a debug build, so one project can hold every app.
  *   - Identity is the account id only — never an email, a name, or anything
  *     read from a letter.
@@ -16,7 +16,7 @@ import { POSTHOG_HOST, POSTHOG_TOKEN } from '../config';
  *   - Never throws.
  */
 
-const APP = 'duebox';
+const APP = 'duemeld';
 
 let client: PostHog | null = null;
 

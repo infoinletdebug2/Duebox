@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Deploy Duebox to production through Xenition's own app pipeline.
+ * Deploy Due Meld to production through Xenition's own app pipeline.
  *
  *   XENITION_EMAIL=… XENITION_PASSWORD=… node deploy/xenition.mjs
  *   (or: node --env-file=$HOME/.xenition-admin.env deploy/xenition.mjs)
@@ -13,9 +13,9 @@
  *              project; the pipeline serves it from the SAME Worker, which
  *              answers /api/* and /health first
  *
- * The account that signs in must own `app_duebox` (the admin account that
+ * The account that signs in must own `app_duemeld` (the admin account that
  * minted its keys), so the deploy reuses that app, its database and keys.
- * Result: one URL, https://duebox.xenition.com.
+ * Result: one URL, https://duemeld.xenition.com.
  *
  * The OpenRouter key is NOT sent: it is the app's own AI key inside Xenition (backend/scripts/ai-key.ts).
  * The pipeline writes only text files, so the website's two PNGs are inlined
@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const GATEWAY = (process.env.XENITION_GATEWAY ?? 'https://api.xenition.com').replace(/\/$/, '');
-const APP_NAME = 'Duebox';
+const APP_NAME = 'duemeld';
 
 const die = (msg) => {
   console.error(`deploy: ${msg}`);
@@ -72,9 +72,9 @@ files.push(
     path: 'frontend/package.json',
     content: JSON.stringify(
       {
-        name: 'duebox-site',
+        name: 'duemeld-site',
         private: true,
-        description: 'Duebox reads your letters, finds the deadlines and reminds you before they are due.',
+        description: 'Due Meld reads your letters, finds the deadlines and reminds you before they are due.',
         type: 'module',
         scripts: { build: 'vite build' },
         devDependencies: { vite: '^5.4.0' },
@@ -110,7 +110,7 @@ async function call(method, url, body, token) {
 
 const email = process.env.XENITION_EMAIL;
 const password = process.env.XENITION_PASSWORD;
-if (!email || !password) die('set XENITION_EMAIL and XENITION_PASSWORD (the account that owns app_duebox)');
+if (!email || !password) die('set XENITION_EMAIL and XENITION_PASSWORD (the account that owns app_duemeld)');
 // Note the path: /auth/login has no /v1 prefix.
 const login = await call('POST', `${GATEWAY}/auth/login`, { email, password });
 const token = login.json.accessToken ?? login.json.data?.accessToken;
@@ -118,7 +118,7 @@ if (!token) die(`sign-in failed (${login.status})`);
 
 const bytes = files.reduce((n, f) => n + f.content.length, 0);
 console.log(`deploy: ${files.length} files, ${(bytes / 1024).toFixed(0)} KB → ${GATEWAY}/v1/generate/app-deploy`);
-// suffix '@bare': publish at duebox.<site domain> (the owner of app_duebox only;
+// suffix '@bare': publish at duemeld.<site domain> (the owner of app_duemeld only;
 // gateway 2ec57cb6+). Without it the address carries a -<hash>.
 const started = await call('POST', `${GATEWAY}/v1/generate/app-deploy`, { app_name: APP_NAME, suffix: '@bare', files }, token);
 const jobId = started.json.job_id;

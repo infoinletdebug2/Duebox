@@ -26,11 +26,11 @@ const MARIGOLD = '#F2B33D';
 const COPY: Record<ReviewTrigger, { title: string; body: string }> = {
   first_scan: {
     title: 'First letter, read',
-    body: 'Duebox found the date and will remind you before it’s due. If that saved you a job, a quick rating helps other households find it.',
+    body: 'Due Meld found the date and will remind you before it’s due. If that saved you a job, a quick rating helps other households find it.',
   },
   done: {
     title: 'Things getting done',
-    body: 'You’ve been clearing deadlines with Duebox for a few days now. A quick rating helps others find it — it takes ten seconds.',
+    body: 'You’ve been clearing deadlines with Due Meld for a few days now. A quick rating helps others find it — it takes ten seconds.',
   },
 };
 
@@ -102,10 +102,10 @@ export function ReviewPrompt() {
           {copy.body}
         </T>
         <View style={styles.actions}>
-          <Pressable onPress={() => void rate()} accessibilityRole="button" accessibilityLabel="Rate Duebox" style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }]} testID="review-rate">
+          <Pressable onPress={() => void rate()} accessibilityRole="button" accessibilityLabel="Rate Due Meld" style={({ pressed }) => [styles.cta, pressed && { opacity: 0.9 }]} testID="review-rate">
             <Icon name="star" size={18} color={INK} strokeWidth={2.4} />
             <T variant="headline" style={{ color: INK }}>
-              Rate Duebox
+              Rate Due Meld
             </T>
           </Pressable>
           <Pressable onPress={close} accessibilityRole="button" style={styles.later} testID="review-later">

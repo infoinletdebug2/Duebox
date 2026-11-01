@@ -1,5 +1,5 @@
 /**
- * Duebox's public site — the home page plus the Privacy Policy, Terms,
+ * Due Meld's public site — the home page plus the Privacy Policy, Terms,
  * Support and account-deletion URLs the App Store and Google Play require.
  * Served by the same Worker as the API (deploy/xenition.mjs).
  *
@@ -23,7 +23,7 @@ const ts = require('typescript');
 /** The app config values the legal screens import — keep in step with mobile/.env. */
 const CONFIG = { SUPPORT_EMAIL: 'contact@infoinlet.com', TRIAL_DAYS: 3 };
 const SUPPORT_EMAIL = CONFIG.SUPPORT_EMAIL;
-const SITE = 'https://duebox.xenition.com';
+const SITE = 'https://duemeld.xenition.com';
 const YEAR = new Date().getUTCFullYear();
 
 /** Compile the constants of a legal screen (everything above `export default`). */
@@ -88,7 +88,7 @@ function page({ title, description, body, path }) {
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Manrope:wght@400;600;700&display=swap" rel="stylesheet">
 <style>${CSS}</style></head>
 <body><div class="wrap">
-<header><img src="/icon.png" alt=""><a href="/">Duebox</a><nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a></nav></header>
+<header><img src="/icon.png" alt=""><a href="/">Due Meld</a><nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a></nav></header>
 ${body}
 <footer>© ${YEAR} InfoInlet · <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/delete-account">Delete account</a></footer>
 </div></body></html>`;
@@ -98,20 +98,20 @@ function legalPage(title, path, doc) {
   const summary = doc.SUMMARY.length ? `<div class="summary"><h2 style="margin-top:8px">The short version</h2><ul>${doc.SUMMARY.map((s) => `<li>${linkify(s)}</li>`).join('')}</ul></div>` : '';
   const sections = doc.SECTIONS.map((s, i) => `<h2>${i + 1}. ${esc(s.heading)}</h2>${s.body.map(block).join('')}`).join('');
   return page({
-    title: `${title} — Duebox`,
-    description: `Duebox ${title.toLowerCase()}.`,
+    title: `${title} — Due Meld`,
+    description: `Due Meld ${title.toLowerCase()}.`,
     path,
     body: `<h1>${esc(title)}</h1><p class="eff">Effective ${esc(doc.EFFECTIVE)}</p>${summary}${sections}`,
   });
 }
 
 const home = page({
-  title: 'Duebox — Snap the letter. We’ll remember the date.',
-  description: 'Duebox reads renewals, bills and forms, shows you the words each deadline came from, and reminds you 30, 7 and 1 days before it’s due.',
+  title: 'Due Meld — Snap the letter. We’ll remember the date.',
+  description: 'Due Meld reads renewals, bills and forms, shows you the words each deadline came from, and reminds you 30, 7 and 1 days before it’s due.',
   path: '/',
   body: `<section class="hero"><div class="tile"><b>NOV</b><span>20</span></div>
 <h1>Snap the letter. We’ll remember the date.</h1>
-<p>Renewal notices, bills, school forms, free trials — Duebox reads the deadline, shows you exactly where it found it, and reminds you before the day, not on it.</p>
+<p>Renewal notices, bills, school forms, free trials — Due Meld reads the deadline, shows you exactly where it found it, and reminds you before the day, not on it.</p>
 <a class="cta" href="/support">Get help</a></section>
 <div class="grid">
 <div class="card"><h3>Snap it</h3><p>Camera, photos or a PDF. The AI finds up to three deadlines in seconds — you check and save.</p></div>
@@ -124,14 +124,14 @@ const home = page({
 });
 
 const support = page({
-  title: 'Support — Duebox',
-  description: 'Get help with Duebox.',
+  title: 'Support — Due Meld',
+  description: 'Get help with Due Meld.',
   path: '/support',
   body: `<h1>Support</h1>
 <p>Email <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> — a person replies, usually within one business day.</p>
 <h2>Common questions</h2>
-<p><strong>How does Duebox read my letters?</strong> An AI model reads the page images to find the deadline, through a provider that is not allowed to keep or train on them. You confirm every date before anything is saved, and only the last four characters of any reference number are kept.</p>
-<p><strong>Why didn’t I get a reminder?</strong> Check that notifications are on for Duebox in your phone’s settings and in Duebox → Settings → Notifications. Reminders arrive at your household’s reminder time; a deadline assigned to someone else reminds them, not you.</p>
+<p><strong>How does Due Meld read my letters?</strong> An AI model reads the page images to find the deadline, through a provider that is not allowed to keep or train on them. You confirm every date before anything is saved, and only the last four characters of any reference number are kept.</p>
+<p><strong>Why didn’t I get a reminder?</strong> Check that notifications are on for Due Meld in your phone’s settings and in Due Meld → Settings → Notifications. Reminders arrive at your household’s reminder time; a deadline assigned to someone else reminds them, not you.</p>
 <p><strong>What happens when the free trial ends?</strong> Your household moves to the free plan. Nothing is hidden or deleted; you can keep using five open deadlines and three scans a month.</p>
 <p><strong>How do I cancel Pro?</strong> Subscriptions are managed by Apple or Google: iPhone Settings → your name → Subscriptions, or Google Play → Payments &amp; subscriptions.</p>
 <p><strong>I forgot my password.</strong> On the sign-in screen tap “Forgot password”, enter your email, and type the 6-digit code we send you.</p>
@@ -140,19 +140,19 @@ const support = page({
 
 // Google Play requires a web page where someone can ask for deletion WITHOUT the app.
 const deleteAccount = page({
-  title: 'Delete your account — Duebox',
-  description: 'How to delete your Duebox account and everything in it.',
+  title: 'Delete your account — Due Meld',
+  description: 'How to delete your Due Meld account and everything in it.',
   path: '/delete-account',
-  body: `<h1>Delete your Duebox account</h1>
-<p>You can delete your account at any time. Deleting it removes your account and everything you stored in Duebox.</p>
+  body: `<h1>Delete your Due Meld account</h1>
+<p>You can delete your account at any time. Deleting it removes your account and everything you stored in Due Meld.</p>
 <h2>In the app (fastest)</h2>
 <ol class="steps">
-<li>Open Duebox and go to <strong>Settings</strong>.</li>
+<li>Open Due Meld and go to <strong>Settings</strong>.</li>
 <li>Tap <strong>Delete account</strong>.</li>
 <li>Confirm with your password — or type <strong>DELETE</strong> if you sign in with Apple or Google.</li>
 </ol>
 <h2>Without the app</h2>
-<p>Email <a href="mailto:${SUPPORT_EMAIL}?subject=Delete%20my%20Duebox%20account">${SUPPORT_EMAIL}</a> from the address you signed up with, with the subject “Delete my Duebox account”. We confirm it is you, delete the account, and reply when it is done — within 30 days.</p>
+<p>Email <a href="mailto:${SUPPORT_EMAIL}?subject=Delete%20my%20Due%20Meld%20account">${SUPPORT_EMAIL}</a> from the address you signed up with, with the subject “Delete my Due Meld account”. We confirm it is you, delete the account, and reply when it is done — within 30 days.</p>
 <h2>What is deleted</h2>
 <ul>
 <li>Your account and sign-in.</li>
@@ -166,13 +166,22 @@ const deleteAccount = page({
 <p>Want a copy first? In the app: Settings → Export my data (CSV or JSON).</p>`,
 });
 
+/**
+ * The store name is "Due Meld"; the app's own screens (and so the legal text
+ * compiled from them) still say Due Meld. Rename at the edge so the public site
+ * matches the App Store listing. Hostnames like duemeld.xenition.com are
+ * lowercase and untouched.
+ */
+const brand = (html) => html.replaceAll('%20Due%20Meld%20', '%20Due%20Meld%20').replaceAll('Due Meld', 'Due Meld');
+const out = (file, html) => writeFile(file, brand(html));
+
 await rm(DIST, { recursive: true, force: true });
 for (const dir of ['privacy', 'terms', 'support', 'delete-account']) await mkdir(join(DIST, dir), { recursive: true });
-await writeFile(join(DIST, 'index.html'), home);
-await writeFile(join(DIST, 'privacy', 'index.html'), legalPage('Privacy Policy', '/privacy', await legal('privacy.tsx')));
-await writeFile(join(DIST, 'terms', 'index.html'), legalPage('Terms of Use', '/terms', await legal('terms.tsx')));
-await writeFile(join(DIST, 'support', 'index.html'), support);
-await writeFile(join(DIST, 'delete-account', 'index.html'), deleteAccount);
+await out(join(DIST, 'index.html'), home);
+await out(join(DIST, 'privacy', 'index.html'), legalPage('Privacy Policy', '/privacy', await legal('privacy.tsx')));
+await out(join(DIST, 'terms', 'index.html'), legalPage('Terms of Use', '/terms', await legal('terms.tsx')));
+await out(join(DIST, 'support', 'index.html'), support);
+await out(join(DIST, 'delete-account', 'index.html'), deleteAccount);
 await copyFile(join(MOBILE, 'assets', 'store-icon-512.png'), join(DIST, 'icon.png'));
 await copyFile(join(MOBILE, 'assets', 'favicon.png'), join(DIST, 'favicon.png'));
 console.log('built website/dist: /, /privacy, /terms, /support, /delete-account');

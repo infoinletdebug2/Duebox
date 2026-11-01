@@ -81,7 +81,7 @@ export default function ForgotPassword() {
       <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'flex-start' }}>
         <Icon name="info" size={16} color={c.textFaint} />
         <T variant="caption" tone="muted" style={{ flex: 1 }}>
-          Signed up with Apple or Google? You don’t have a Duebox password — sign in with that button instead.
+          Signed up with Apple or Google? You don’t have a Due Meld password — sign in with that button instead.
         </T>
       </View>
     </AuthShell>

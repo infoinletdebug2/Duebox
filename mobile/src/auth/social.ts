@@ -13,7 +13,7 @@ import { API_URL, IS_EXPO_GO } from '../config';
  *     build of our own (never Expo Go) and this app's Apple Services ID
  *     registered on the platform;
  *   - **brokered** — the platform hands us a consent URL, we open it, and the
- *     finished sign-in comes back on `duebox://auth` with a one-time code.
+ *     finished sign-in comes back on `duemeld://auth` with a one-time code.
  *     Works everywhere with nothing registered. Google always uses this lane
  *     (no Google SDK on the phone).
  *
@@ -109,14 +109,14 @@ export async function signInWithBrowser(provider: SocialProvider): Promise<Socia
 
 /**
  * Where the browser starts. An installed build asks the API for the consent
- * URL, which returns to `duebox://auth`. Expo Go's `exp://…/--/auth` cannot be
+ * URL, which returns to `duemeld://auth`. Expo Go's `exp://…/--/auth` cannot be
  * registered with the platform, so Expo Go starts at the worker's relay, which
  * signs in through the registered https callback and hands the code back to
  * this exact address (backend routers/auth.ts; Ay-Rojgar's website does the same).
  */
 async function startUrl(provider: SocialProvider): Promise<string> {
   const back = returnUrl();
-  if (back.startsWith('duebox://')) {
+  if (back.startsWith('duemeld://')) {
     return (await api.anonymous.get<{ url: string }>(`/auth/social/${provider}/start`)).url;
   }
   return `${API_URL}/api/v1/auth/social/${provider}/relay?app=${encodeURIComponent(back)}`;

@@ -1,9 +1,9 @@
 {
-  "name": "duebox-backend",
+  "name": "duemeld-backend",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Duebox worker — items, scans, reminders and the plan, on @xenition/sdk.",
+  "description": "Due Meld worker — items, scans, reminders and the plan, on @xenition/sdk.",
   "scripts": {
     "dev": "tsx --env-file=.dev.vars src/dev.ts",
     "migrate": "tsx --env-file=.dev.vars src/migrate.ts",

@@ -72,7 +72,7 @@ export default function Notifications() {
       />
       {status === 'denied' || status === 'undetermined' ? (
         <View style={{ gap: space.sm }}>
-          <Banner icon="bell-off" message="Notifications are off for Duebox on this phone, so reminders can’t reach you." />
+          <Banner icon="bell-off" message="Notifications are off for Due Meld on this phone, so reminders can’t reach you." />
           <Button label={status === 'undetermined' ? 'Turn on notifications' : 'Open phone settings'} tone="secondary" onPress={() => void fix()} />
         </View>
       ) : status === 'unsupported' ? (

@@ -61,7 +61,7 @@ export default function DeleteAccount() {
 
   // What goes, in three short lines instead of a paragraph.
   const goes: { icon: IconName; text: string }[] = !household
-    ? [{ icon: 'user', text: 'Your Duebox sign-in and profile' }]
+    ? [{ icon: 'user', text: 'Your Due Meld sign-in and profile' }]
     : isOwner
       ? [
           { icon: 'calendar-clock', text: 'Every deadline and reminder' },

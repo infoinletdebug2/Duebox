@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, useColorScheme, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
 
 /**
- * Duebox's tokens — DESIGN-SYSTEM.md §3–§4 is the specification.
+ * Due Meld's tokens — DESIGN-SYSTEM.md §3–§4 is the specification.
  *
  * The seed: PLUM (brand: structure, the Next-up hero, "due soon"), MARIGOLD
  * (accent: the one button you press), PAPER (warm neutral ground), BRICK
@@ -36,7 +36,7 @@ export interface Colors {
   line: string;
   good: string;
   goodSoft: string;
-  /** Kept for the kit's Banner; Duebox has no amber, so it is plum. */
+  /** Kept for the kit's Banner; Due Meld has no amber, so it is plum. */
   warn: string;
   warnSoft: string;
   critical: string;

@@ -22,7 +22,7 @@ import { formErrors, MIN_PASSWORD } from '../../src/account/forms';
  *
  * There is no "which kind of account am I" on the wire, so the password form
  * is always offered with a sentence for Apple / Google accounts, who have
- * no Duebox password to change.
+ * no Due Meld password to change.
  */
 export default function Account() {
   const router = useRouter();
@@ -148,7 +148,7 @@ export default function Account() {
           Change password
         </T>
         <T variant="caption" tone="muted">
-          If you sign in with Apple or Google, you don’t have a Duebox password — there’s nothing to change here.
+          If you sign in with Apple or Google, you don’t have a Due Meld password — there’s nothing to change here.
         </T>
         <PasswordField
           label="Current password"

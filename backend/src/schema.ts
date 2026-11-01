@@ -1,7 +1,7 @@
 import type { Migration } from '@xenition/sdk';
 
 /**
- * Duebox's tables (CONTRACT §4). Prefix `dx__` (the platform's plan cache is
+ * Due Meld's tables (CONTRACT §4). Prefix `dx__` (the platform's plan cache is
  * keyed by table name across apps). Every household row carries
  * `household_id`, and every query filters on it from the caller's membership
  * (BR-01). Money is integer cents. Soft-deleted: dx__item, dx__document,

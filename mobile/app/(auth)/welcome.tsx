@@ -33,7 +33,7 @@ export default function Welcome() {
           Snap the letter. We’ll remember the date.
         </T>
         <T tone="muted" align="center" style={s.lead}>
-          Duebox reads renewals, bills and forms, and reminds you before every deadline — not on the day.
+          Due Meld reads renewals, bills and forms, and reminds you before every deadline — not on the day.
         </T>
       </View>
 
@@ -49,7 +49,7 @@ export default function Welcome() {
         />
       </View>
 
-      <AuthLink lead="Already using Duebox?" label="I have an account" onPress={() => router.push('/(auth)/sign-in')} testID="welcome-sign-in" />
+      <AuthLink lead="Already using Due Meld?" label="I have an account" onPress={() => router.push('/(auth)/sign-in')} testID="welcome-sign-in" />
       <AuthLink lead="Not sure yet?" label="See how it works" onPress={() => router.push('/discover')} testID="welcome-discover" />
 
       <T variant="caption" tone="faint" align="center">

@@ -4,11 +4,11 @@
  * PUT → read) and print what the AI found. Uses a throwaway account it deletes.
  *
  *   node scripts/read-check.mjs scripts/fixtures/*.jpg            # local worker
- *   API=https://duebox.xenition.com node scripts/read-check.mjs photo.jpg
+ *   API=https://duemeld.xenition.com node scripts/read-check.mjs photo.jpg
  *
  * Hard paywall: a new account cannot scan, so against a deployed worker run
  * it as the review account — it signs in instead, and removes its scans:
- *   API=https://duebox.xenition.com node --env-file=.dev.vars scripts/read-check.mjs scripts/fixtures/*.jpg
+ *   API=https://duemeld.xenition.com node --env-file=.dev.vars scripts/read-check.mjs scripts/fixtures/*.jpg
  * (DEMO_EMAIL / DEMO_PASSWORD from .dev.vars)
  */
 import { readFileSync, statSync } from 'node:fs';
@@ -18,7 +18,7 @@ const API = (process.env.API ?? 'http://localhost:8787').replace(/\/$/, '') + '/
 const files = process.argv.slice(2);
 if (!files.length) throw new Error('usage: read-check.mjs <image.jpg|.pdf> …');
 const asDemo = Boolean(process.env.DEMO_EMAIL && process.env.DEMO_PASSWORD);
-const email = asDemo ? process.env.DEMO_EMAIL : `readcheck+${Date.now()}@duebox.test`;
+const email = asDemo ? process.env.DEMO_EMAIL : `readcheck+${Date.now()}@duemeld.test`;
 const password = asDemo ? process.env.DEMO_PASSWORD : 'read-check-Password-1';
 let token = '';
 const scans = [];

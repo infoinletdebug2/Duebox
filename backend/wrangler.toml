@@ -1,4 +1,4 @@
-name = "duebox-backend"
+name = "duemeld-backend"
 main = "src/index.ts"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
@@ -9,10 +9,10 @@ crons = ["*/5 * * * *"]
 
 [vars]
 XENITION_API_URL = "https://api.xenition.com/v1"
-APP_NAME = "Duebox"
-APP_SCHEME = "duebox"
-APPLE_BUNDLE_ID = "app.duebox.mobile"
-GOOGLE_PACKAGE_NAME = "app.duebox.mobile"
+APP_NAME = "Due Meld"
+APP_SCHEME = "duemeld"
+APPLE_BUNDLE_ID = "com.infoinlet.duemeld"
+GOOGLE_PACKAGE_NAME = "com.infoinlet.duemeld"
 READER_MODEL = "google/gemini-2.5-flash"
 TRIAL_DAYS = "3"
 

@@ -39,7 +39,7 @@ function loadIap(): Promise<IapModule | null> {
 }
 
 /**
- * Buying Duebox Pro.
+ * Buying Due Meld Pro.
  *
  * ## The division of labour, and why it is not negotiable
  *

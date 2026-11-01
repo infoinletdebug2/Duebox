@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Duebox API test — every route, with curl, against a running worker.
+# Due Meld API test — every route, with curl, against a running worker.
 #
 #   npm run dev                  # with .dev.vars holding a real Xenition key
 #   bash scripts/api-test.sh     # or: API=https://… bash scripts/api-test.sh
@@ -17,8 +17,8 @@ API="${API:-http://localhost:8787}/api/v1"
 ROOT="${API%/api/v1}"
 PASSWORD="api-test-Password-1"
 STAMP="$(date +%s)"
-OWNER_EMAIL="apitest+owner${STAMP}@duebox.test"
-PARTNER_EMAIL="apitest+partner${STAMP}@duebox.test"
+OWNER_EMAIL="apitest+owner${STAMP}@duemeld.test"
+PARTNER_EMAIL="apitest+partner${STAMP}@duemeld.test"
 TZ_HEADER="America/Chicago"
 SAMPLE_LETTER="${SAMPLE_LETTER:-$(dirname "$0")/sample-letter.jpg}"
 OUT="$(mktemp)"
@@ -74,10 +74,10 @@ trap cleanup EXIT
 # A calendar day N days from today IN THE HOUSEHOLD'S ZONE (the server counts days there).
 day() { OFFSET="$1" node -e "const t=new Intl.DateTimeFormat('en-CA',{timeZone:'$TZ_HEADER'}).format(new Date());const d=new Date(t+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+Number(process.env.OFFSET));console.log(d.toISOString().slice(0,10))"; }
 
-echo "Duebox API test → $API"
+echo "Due Meld API test → $API"
 echo
 echo "health"
-curl -s -o "$OUT" "$ROOT/health"; check 'd.ok===true && d.app==="duebox"' 'GET /health answers'
+curl -s -o "$OUT" "$ROOT/health"; check 'd.ok===true && d.app==="duemeld"' 'GET /health answers'
 
 echo "auth"
 call GET /auth/social/providers 200
@@ -255,7 +255,7 @@ if [ "$CSV_STATUS" = "200" ] && head -1 "$OUT" | grep -q '^title,category,action
 echo "household sharing"
 call POST /household/invites 201
 CODE="$(js 'd.data.code')"; INVITE="$(js 'd.data.id')"
-check '/^duebox:\/\/join\//.test(d.data.link) && d.data.code.length===8' 'invite code + deep link'
+check '/^duemeld:\/\/join\//.test(d.data.link) && d.data.code.length===8' 'invite code + deep link'
 call GET /household/invites 200
 check 'd.data.length===1 && d.data[0].code===undefined' 'invite list never shows the code again'
 TOKEN=""
@@ -311,7 +311,7 @@ fi
 echo "gating after the trial (Free)"
 # A fresh account with setup skipped stays Free: 5 items, then 402 item_limit.
 TOKEN=""
-FREE_EMAIL="apitest+free${STAMP}@duebox.test"
+FREE_EMAIL="apitest+free${STAMP}@duemeld.test"
 call POST /auth/register 201 "{\"email\":\"$FREE_EMAIL\",\"password\":\"$PASSWORD\"}"
 FREE_TOKEN="$(js 'd.data.accessToken')"; TOKEN="$FREE_TOKEN"
 call GET /auth/me 200
@@ -373,7 +373,7 @@ check '(d.data.changed===true) || (d.data.codeSent===true && d.data.email==="'"$
 TOKEN=""
 call POST /auth/forgot-password 200 "{\"email\":\"$OWNER_EMAIL\"}"
 check 'd.data.sent===true' 'reset code requested'
-call POST /auth/forgot-password 200 '{"email":"nobody-here@duebox.test"}'
+call POST /auth/forgot-password 200 '{"email":"nobody-here@duemeld.test"}'
 check 'd.data.sent===true' 'same answer for an unknown email (no account oracle)'
 call POST /auth/reset-password 400 "{\"email\":\"$OWNER_EMAIL\",\"password\":\"another-Password-9\"}"
 check 'd.error.fields.code==="REQUIRED"' 'reset without a code → asks for the code'
@@ -382,7 +382,7 @@ check 'd.error.fields.email==="INVALID_EMAIL"' 'reset without the email → asks
 call POST /auth/reset-password 400 "{\"code\":\"000000\",\"email\":\"$OWNER_EMAIL\",\"password\":\"another-Password-9\"}"
 check 'd.error.code==="AUTH_INVALID_CODE"' 'a wrong reset code is refused with a readable message'
 echo "    (waiting 65 s for the auth rate limit window)"; sleep 65
-call GET '/auth/social/google/start?returnTo=duebox://auth' 200,412
+call GET '/auth/social/google/start?returnTo=duemeld://auth' 200,412
 check '(d.success && /^https?:/.test(d.data.url)) || d.error' "Google sign-in start: $(js 'd.success ? "consent URL issued" : d.error.code')"
 call GET '/auth/social/apple/start?returnTo=https://evil.example' 200,412
 check '!d.success || !d.data.url.includes("evil.example")' 'a foreign returnTo is never passed through'

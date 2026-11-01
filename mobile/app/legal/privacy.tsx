@@ -15,7 +15,7 @@ import { LegalScreen, type LegalSection } from '../../src/account/LegalScreen';
 export const EFFECTIVE = 'October 5, 2026';
 
 export const SUMMARY = [
-  'Duebox keeps track of your deadlines. We collect only what that needs.',
+  'Due Meld keeps track of your deadlines. We collect only what that needs.',
   'Your items and scanned pages are private to your household. Only you and the people you invite can see them.',
   'To read a letter, we send its images to an AI service that is not allowed to keep them or learn from them. Reference numbers are cut to the last 4 digits.',
   'No ads, no trackers, no data brokers. We never sell your data.',
@@ -26,7 +26,7 @@ export const SECTIONS: LegalSection[] = [
   {
     heading: 'Who we are',
     body: [
-      `Duebox is a deadline-reminder app operated by InfoInlet (“we”, “us”). You photograph a letter, bill or form, Duebox reads the deadline, and reminds you before it is due. This policy explains what we collect, why, and the choices you have. Contact us at ${SUPPORT_EMAIL}.`,
+      `Due Meld is a deadline-reminder app operated by InfoInlet (“we”, “us”). You photograph a letter, bill or form, Due Meld reads the deadline, and reminds you before it is due. This policy explains what we collect, why, and the choices you have. Contact us at ${SUPPORT_EMAIL}.`,
     ],
   },
   {
@@ -112,7 +112,7 @@ export const SECTIONS: LegalSection[] = [
   },
   {
     heading: 'Children',
-    body: ['Duebox is for adults. We do not knowingly collect data from children under 13 (or 16 where required).'],
+    body: ['Due Meld is for adults. We do not knowingly collect data from children under 13 (or 16 where required).'],
   },
   {
     heading: 'Changes',

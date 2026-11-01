@@ -39,7 +39,7 @@ import { RemindArt } from '../src/ui/artwork';
 type StoreState = { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'ready'; plans: StorePlan[] } | { kind: 'error'; message: string };
 
 const BENEFITS: { icon: IconName; title: string; note: string }[] = [
-  { icon: 'scan', title: 'Snap a letter, get the date', note: 'Duebox reads it and shows you where the date came from' },
+  { icon: 'scan', title: 'Snap a letter, get the date', note: 'Due Meld reads it and shows you where the date came from' },
   { icon: 'alarm', title: 'Reminded before — not on the day', note: '30, 7 and 1 days ahead, or your own timing' },
   { icon: 'inbox', title: 'Every deadline in one place', note: 'Renewals, bills, forms, free trials — unlimited' },
   { icon: 'users', title: 'Your whole household', note: 'Up to 5 people, one subscription' },
@@ -109,7 +109,7 @@ export default function Paywall() {
       invalidateItems(qc);
       if (next.entitled) {
         tap('success');
-        toast({ message: next.isTrial ? 'Your free trial has started. Welcome to Duebox.' : 'Welcome to Duebox. Thank you.' });
+        toast({ message: next.isTrial ? 'Your free trial has started. Welcome to Due Meld.' : 'Welcome to Due Meld. Thank you.' });
         enter();
       } else {
         setError('The store hasn’t confirmed this purchase yet. If you were charged, tap Restore purchases.');
@@ -126,12 +126,12 @@ export default function Paywall() {
     setError(null);
     try {
       if (store.kind === 'unavailable') {
-        toast({ message: `Restoring needs the ${storeName} version of Duebox.` });
+        toast({ message: `Restoring needs the ${storeName} version of Due Meld.` });
         return;
       }
       const next = await restore();
       if (!next) {
-        toast({ message: `No Duebox subscription found on this ${accountName}.` });
+        toast({ message: `No Due Meld subscription found on this ${accountName}.` });
         return;
       }
       setPlan(next);
@@ -151,25 +151,25 @@ export default function Paywall() {
 
   const manage = () => {
     const url = Platform.OS === 'ios' ? 'https://apps.apple.com/account/subscriptions' : 'https://play.google.com/store/account/subscriptions';
-    void Linking.openURL(url).catch(() => toast({ message: `Open Subscriptions in your ${storeName} account to manage Duebox.` }));
+    void Linking.openURL(url).catch(() => toast({ message: `Open Subscriptions in your ${storeName} account to manage Due Meld.` }));
   };
 
   const selectedPlan = store.kind === 'ready' ? store.plans.find((p) => p.productId === selected) : undefined;
   // "Free" needs both: the store offers it to this store account, and this
-  // Duebox account has never bought (the server's answer).
+  // Due Meld account has never bought (the server's answer).
   const trialFor = (p: StorePlan | undefined) => (p?.trial && plan?.trialEligible !== false ? p.trial : null);
   const trial = trialFor(selectedPlan);
   const showPlans = !entitled && isOwner && store.kind === 'ready' && store.plans.length > 0;
 
   const head = entitled
-    ? { title: 'You’re on Duebox Pro', lead: plan?.isTrial ? `Your free trial runs until ${longDate(plan.trialEndsAt)}.` : 'Everything is unlocked for everyone in your household.' }
+    ? { title: 'You’re on Due Meld Pro', lead: plan?.isTrial ? `Your free trial runs until ${longDate(plan.trialEndsAt)}.` : 'Everything is unlocked for everyone in your household.' }
     : !isOwner
-      ? { title: 'This household isn’t subscribed', lead: 'Your deadlines are safe. Ask the person who set up Duebox to subscribe — one plan covers everyone.' }
+      ? { title: 'This household isn’t subscribed', lead: 'Your deadlines are safe. Ask the person who set up Due Meld to subscribe — one plan covers everyone.' }
       : plan?.status === 'billing_retry'
-        ? { title: 'There’s a problem with your payment', lead: `Update your payment method in your ${storeName} account and Duebox opens again — your deadlines are all still here.` }
+        ? { title: 'There’s a problem with your payment', lead: `Update your payment method in your ${storeName} account and Due Meld opens again — your deadlines are all still here.` }
         : plan?.status === 'expired'
           ? { title: 'Your subscription has ended', lead: 'Renew to get your reminders back. Every deadline you saved is still here, waiting.' }
-          : { title: 'Never miss a deadline again', lead: 'One avoided late fee pays for a year of Duebox.' };
+          : { title: 'Never miss a deadline again', lead: 'One avoided late fee pays for a year of Due Meld.' };
 
   return (
     <View style={s.root} testID="screen-paywall">
@@ -179,7 +179,7 @@ export default function Paywall() {
             <View style={s.proTag}>
               <Icon name="crown" size={14} color={c.accentInk} />
               <T variant="micro" style={{ color: c.accentInk }}>
-                Duebox Pro
+                Due Meld Pro
               </T>
             </View>
             {/* Not a close button: the way to sign-out, export and account deletion. */}
@@ -220,7 +220,7 @@ export default function Paywall() {
                   Renews {longDate(plan.renewsAt)}
                 </T>
               ) : null}
-              <Button label="Open Duebox" onPress={enter} testID="paywall-enter" />
+              <Button label="Open Due Meld" onPress={enter} testID="paywall-enter" />
               <Button label="Manage subscription" tone="secondary" onPress={manage} testID="paywall-manage" />
             </View>
           ) : !isOwner ? (
@@ -236,7 +236,7 @@ export default function Paywall() {
             // No store here (Expo Go, web): show the planned plans greyed out so the layout can be seen. A real
             // build never reaches this branch, and there the prices always come from the store, as billed.
             <View style={{ gap: space.sm }} testID="paywall-preview">
-              <Banner icon="info" message="Preview only. Subscriptions work in the App Store and Google Play versions of Duebox — not in Expo Go or on the web." />
+              <Banner icon="info" message="Preview only. Subscriptions work in the App Store and Google Play versions of Due Meld — not in Expo Go or on the web." />
               <View style={{ gap: space.sm, opacity: 0.55 }} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                 {PREVIEW_PLANS.map((p) => (
                   <PlanOption key={p.productId} plan={p} trialDays={p.trial?.days ?? null} selected={p.period === 'yearly'} onPress={() => undefined} />
@@ -268,7 +268,7 @@ export default function Paywall() {
             <Button label="Sign out" tone="quiet" small full={false} onPress={() => void signOut()} testID="paywall-sign-out" />
           </View>
           <T variant="caption" tone="faint" align="center">
-            Duebox Pro is an auto-renewing subscription: {selectedPlan?.price ?? 'the price shown'} per {selectedPlan?.period === 'monthly' ? 'month' : 'year'}.
+            Due Meld Pro is an auto-renewing subscription: {selectedPlan?.price ?? 'the price shown'} per {selectedPlan?.period === 'monthly' ? 'month' : 'year'}.
             {trial
               ? ` Your ${trial.days}-day free trial starts today. When it ends, payment is charged to your ${accountName} account unless you cancel at least 24 hours before the trial ends.`
               : ` Payment is charged to your ${accountName} account when you confirm.`}{' '}

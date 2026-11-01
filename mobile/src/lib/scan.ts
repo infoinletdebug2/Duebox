@@ -28,8 +28,8 @@ export class PermissionDenied extends Error {
   constructor(readonly source: ScanSource) {
     super(
       source === 'camera'
-        ? 'Duebox needs the camera to scan your letter. You can allow it in Settings.'
-        : 'Duebox needs access to your photos to add a letter. You can allow it in Settings.',
+        ? 'Due Meld needs the camera to scan your letter. You can allow it in Settings.'
+        : 'Due Meld needs access to your photos to add a letter. You can allow it in Settings.',
     );
   }
 }

@@ -17,7 +17,7 @@ if (existing[0]) {
   await client.ai.keys.update(existing[0].id, { apiKey: key, isActive: true });
   console.log(`updated the app's openrouter key (${existing[0].id})`);
 } else {
-  const created = await client.ai.keys.create({ displayName: 'Duebox reader', provider: 'openrouter', apiKey: key });
+  const created = await client.ai.keys.create({ displayName: 'Due Meld reader', provider: 'openrouter', apiKey: key });
   console.log(`registered the app's openrouter key (${created.id})`);
 }
 console.log('keys now:', (await client.ai.keys.list()).map((k) => `${k.provider}:${k.isActive ? 'active' : 'off'}`).join(', '));

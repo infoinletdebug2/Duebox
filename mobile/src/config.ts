@@ -7,7 +7,7 @@ import Constants from 'expo-constants';
  * out literally — `process.env[name]` would read nothing at runtime
  * (traps.md). Everything here ships in the bundle: ids and labels, never a
  * secret. The phone holds no Xenition package and no credential; every
- * request goes to Duebox's own worker.
+ * request goes to Due Meld's own worker.
  */
 
 function str(value: string | undefined, fallback: string): string {
@@ -46,8 +46,8 @@ export const API_URL = (() => {
 
 /** Must match backend PRO_*_ID byte for byte, and exist in both stores. */
 export const PRODUCT_IDS = {
-  monthly: str(process.env.EXPO_PUBLIC_PRO_MONTHLY_ID, 'duebox_pro_monthly'),
-  yearly: str(process.env.EXPO_PUBLIC_PRO_YEARLY_ID, 'duebox_pro_yearly'),
+  monthly: str(process.env.EXPO_PUBLIC_PRO_MONTHLY_ID, 'duemeld_pro_monthly'),
+  yearly: str(process.env.EXPO_PUBLIC_PRO_YEARLY_ID, 'duemeld_pro_yearly'),
 } as const;
 
 /**
@@ -60,9 +60,9 @@ export const TRIAL_DAYS = num(process.env.EXPO_PUBLIC_TRIAL_DAYS, 3);
 export const YEARLY_SAVING_PERCENT = num(process.env.EXPO_PUBLIC_YEARLY_SAVING_PERCENT, 58);
 
 export const SUPPORT_EMAIL = str(process.env.EXPO_PUBLIC_SUPPORT_EMAIL, 'contact@infoinlet.com');
-export const WEBSITE_URL = str(process.env.EXPO_PUBLIC_WEBSITE_URL, 'https://duebox.xenition.com');
+export const WEBSITE_URL = str(process.env.EXPO_PUBLIC_WEBSITE_URL, 'https://duemeld.xenition.com');
 export const APPLE_APP_ID = str(process.env.EXPO_PUBLIC_APPLE_APP_ID, '');
-export const ANDROID_PACKAGE = str(process.env.EXPO_PUBLIC_ANDROID_PACKAGE, 'app.duebox.mobile');
+export const ANDROID_PACKAGE = str(process.env.EXPO_PUBLIC_ANDROID_PACKAGE, 'com.infoinlet.duemeld');
 
 /** EAS project id — needed for an Expo push token in a dev/store build. */
 export const EAS_PROJECT_ID = str(
@@ -88,7 +88,7 @@ export const META_ENABLED =
   (Constants.expoConfig?.extra as { metaEnabled?: boolean } | undefined)?.metaEnabled === true;
 
 /**
- * PostHog: the one shared fleet project every app sends to; `app: 'duebox'`
+ * PostHog: the one shared fleet project every app sends to; `app: 'duemeld'`
  * on every event tells them apart (lib/posthog.ts). The phc_ token is
  * write-only and public by design, so it is built in; the env only overrides
  * it, and an empty value does not turn it off.

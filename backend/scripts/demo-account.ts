@@ -1,6 +1,6 @@
 /**
  * The App Store / Play review and hands-on test account: signed up, set up,
- * email confirmed, and granted Duebox Pro with NO expiry — so it never meets
+ * email confirmed, and granted Due Meld Pro with NO expiry — so it never meets
  * the hard paywall and every screen can be reached — then filled with the
  * demo deadlines (scripts/seed-demo.ts).
  *
@@ -16,7 +16,7 @@
 import { execFileSync } from 'node:child_process';
 import { XenitionClient } from '@xenition/sdk';
 
-const API = `${(process.env.API ?? 'https://duebox.xenition.com').replace(/\/+$/, '')}/api/v1`;
+const API = `${(process.env.API ?? 'https://duemeld.xenition.com').replace(/\/+$/, '')}/api/v1`;
 const EMAIL = (process.env.DEMO_EMAIL ?? 'demo@infoinlet.com').toLowerCase();
 const PASSWORD = process.env.DEMO_PASSWORD ?? '';
 if (!PASSWORD) throw new Error('DEMO_PASSWORD is not set — it lives in backend/.dev.vars (never in the repo: it is public).');

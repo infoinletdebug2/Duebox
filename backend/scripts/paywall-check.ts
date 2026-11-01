@@ -4,7 +4,7 @@
  *   cd backend && npx tsx --env-file=.dev.vars scripts/paywall-check.ts
  *   API=http://localhost:8787 npx tsx --env-file=.dev.vars scripts/paywall-check.ts
  *
- * Signs up a throwaway @duebox.test account and checks: locked after setup
+ * Signs up a throwaway @duemeld.test account and checks: locked after setup
  * (402 on data routes, export and the plan still open), two products with the
  * trial on yearly, then — with the entitlement granted through the SDK, as a
  * verified store purchase would — open; then revoked, locked again. The
@@ -12,7 +12,7 @@
  */
 import { XenitionClient } from '@xenition/sdk';
 
-const API = `${(process.env.API ?? 'https://duebox.xenition.com').replace(/\/+$/, '')}/api/v1`;
+const API = `${(process.env.API ?? 'https://duemeld.xenition.com').replace(/\/+$/, '')}/api/v1`;
 const key = process.env.XENITION_API_KEY ?? '';
 if (!key.startsWith('xen_service_')) throw new Error('XENITION_API_KEY missing: run with --env-file=.dev.vars');
 const client = new XenitionClient(key, { baseUrl: process.env.XENITION_API_URL });
@@ -37,7 +37,7 @@ async function call(method: string, path: string, body?: unknown): Promise<{ sta
   return { status: res.status, json: await res.json().catch(() => null) };
 }
 
-const email = `apitest+paywall${Date.now()}@duebox.test`;
+const email = `apitest+paywall${Date.now()}@duemeld.test`;
 const password = 'Pa55word-paywall-1';
 
 const reg = await call('POST', '/auth/register', { email, password });
@@ -69,7 +69,7 @@ try {
   const products = await call('GET', '/billing/products?platform=apple');
   const list = products.json?.data?.products ?? [];
   check(
-    list.length === 2 && list[0]?.productId === 'duebox_pro_yearly' && list[0]?.trial === true && list[1]?.trial === false,
+    list.length === 2 && list[0]?.productId === 'duemeld_pro_yearly' && list[0]?.trial === true && list[1]?.trial === false,
     'two products, trial on yearly only',
     list,
   );

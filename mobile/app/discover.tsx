@@ -77,7 +77,7 @@ const SLIDES: Slide[] = [
   {
     art: require('../assets/discover/scan.jpg'),
     title: 'Never miss a due date.',
-    body: 'Snap a letter. Duebox finds the date and reminds you.',
+    body: 'Snap a letter. Due Meld finds the date and reminds you.',
     alt: 'A phone scans a letter; it becomes a car insurance card due in 7 days, and a reminder arrives.',
     Scene: LoopScene,
   },
@@ -201,7 +201,7 @@ export default function Discover() {
           <View style={styles.brand}>
             <Mark size={28} />
             <T variant="headline" style={styles.onInk}>
-              Duebox
+              Due Meld
             </T>
           </View>
           {!last ? (
@@ -574,7 +574,7 @@ function CardRow({ title, sub, amount, due, urgency, when, who, pulse }: CardPro
   );
 }
 
-/** A phone notification, the way Duebox's reminders arrive — with the actions when `done` is wired. */
+/** A phone notification, the way Due Meld's reminders arrive — with the actions when `done` is wired. */
 function Banner({ title, body, words, done }: { title: string; body: string; words?: React.ComponentProps<typeof Animated.View>['style']; done?: SharedValue<number> }) {
   const c = useColors();
   return (
@@ -585,7 +585,7 @@ function Banner({ title, body, words, done }: { title: string; body: string; wor
           <View style={{ flex: 1, minWidth: 0 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <T allowFontScaling={false} style={{ fontFamily: font.bold, fontSize: 11, lineHeight: 14, color: c.textMuted, letterSpacing: 0.4 }}>
-                DUEBOX
+                DUE MELD
               </T>
               <T allowFontScaling={false} style={{ fontFamily: font.medium, fontSize: 11, lineHeight: 14, color: c.textFaint }}>
                 9:00 AM

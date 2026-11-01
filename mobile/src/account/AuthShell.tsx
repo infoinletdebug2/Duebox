@@ -28,7 +28,7 @@ export function Brand() {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
       <Mark size={32} />
-      <T variant="title">Duebox</T>
+      <T variant="title">Due Meld</T>
     </View>
   );
 }

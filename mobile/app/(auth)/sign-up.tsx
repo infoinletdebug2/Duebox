@@ -58,7 +58,7 @@ export default function SignUp() {
   return (
     <AuthShell
       title="Create your account"
-      lead="Snap a letter, and Duebox remembers the date for you."
+      lead="Snap a letter, and Due Meld remembers the date for you."
       hero={{
         art: 'auth',
         eyebrow: `${TRIAL_DAYS}-day free trial on yearly`,

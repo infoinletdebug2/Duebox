@@ -45,7 +45,7 @@ export default function Settings() {
               {household?.name ?? 'Your home'}
             </T>
             <T variant="title" style={{ color: c.onBrand }}>
-              {plan?.isTrial ? 'Duebox Pro · free trial' : 'Duebox Pro'}
+              {plan?.isTrial ? 'Due Meld Pro · free trial' : 'Due Meld Pro'}
             </T>
             <T variant="caption" style={{ color: c.onBrandMuted }}>
               {plan?.isTrial && plan.trialEndsAt
@@ -105,14 +105,14 @@ export default function Settings() {
       </Group>
 
       <Group title="About">
-        {canOpenStoreListing() ? <ListRow icon="star" title="Rate Duebox" onPress={() => void openStoreListing()} /> : null}
-        <ListRow icon="mail" title="Contact support" subtitle={SUPPORT_EMAIL} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Duebox%20support`).catch(() => undefined)} />
+        {canOpenStoreListing() ? <ListRow icon="star" title="Rate Due Meld" onPress={() => void openStoreListing()} /> : null}
+        <ListRow icon="mail" title="Contact support" subtitle={SUPPORT_EMAIL} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Due%20Meld%20support`).catch(() => undefined)} />
         <ListRow icon="shield" title="Privacy policy" onPress={() => router.push('/legal/privacy')} />
         <ListRow icon="file" title="Terms of service" onPress={() => router.push('/legal/terms')} />
       </Group>
 
       <T variant="caption" tone="faint" align="center">
-        Duebox {version}
+        Due Meld {version}
       </T>
 
       <ConfirmSheet

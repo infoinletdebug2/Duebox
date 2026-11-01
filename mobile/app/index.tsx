@@ -7,7 +7,7 @@ import { useColors } from '../src/theme/tokens';
 
 /**
  * Which world to open:
- *   a phone that has never seen Duebox → the discovery pitch;
+ *   a phone that has never seen Due Meld → the discovery pitch;
  *   no session → welcome;
  *   signed in, setup not done (owner) → the two-tap setup;
  *   set up but not subscribed → the paywall (hard paywall, no way past it);
