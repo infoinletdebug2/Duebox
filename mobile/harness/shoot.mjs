@@ -16,13 +16,17 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
-const SHOTS = join(HERE, process.argv.includes('--dark') ? 'shots-dark' : 'shots');
+const SHOTS = process.env.HARNESS_OUT ? join(HERE, process.env.HARNESS_OUT) : join(HERE, process.argv.includes('--dark') ? 'shots-dark' : 'shots');
 const PROFILE = join(HERE, '.chrome-profile');
 const WEB = 'http://localhost:8080';
 const PORT = 9222;
 
 /** A phone, not a desktop. The layout only means anything at this width. */
-const VIEWPORT = { width: 393, height: 852, deviceScaleFactor: 2 };
+const VIEWPORT = {
+  width: Number(process.env.HARNESS_W ?? 393),
+  height: Number(process.env.HARNESS_H ?? 852),
+  deviceScaleFactor: Number(process.env.HARNESS_SCALE ?? 2),
+};
 
 const CHROME =
   process.env.CHROME_PATH ??

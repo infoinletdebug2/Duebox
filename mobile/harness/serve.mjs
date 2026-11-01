@@ -57,12 +57,11 @@ const MEMBERS = [
   { id: 'm-2', displayName: 'Sam Rivera', initial: 'S', role: 'member', isMe: false, email: 'sam@example.com' },
 ];
 
-const TRIAL = { isTrial: false, trialDays: 7, trialEndsAt: null, trialUsed: true };
-const PLAN_FREE = { ...TRIAL, tier: 'free', source: 'none', renewsAt: null, expiresAt: null, limits: { openItems: 5, scansPerMonth: 3, members: 1 }, usage: { openItems: 4, scansThisMonth: 2, month: TODAY.slice(0, 7) } };
-const PLAN_PRO = { ...TRIAL, tier: 'pro', source: 'store', renewsAt: iso(200), expiresAt: null, limits: { openItems: null, scansPerMonth: 100, members: 5 }, usage: { openItems: ITEMS.length, scansThisMonth: 9, month: TODAY.slice(0, 7) } };
-
-
-const PLAN_TRIAL = { ...PLAN_PRO, source: 'trial', isTrial: true, trialEndsAt: iso(7), renewsAt: null };
+// The hard-paywall Plan (src/types.ts): `entitled` is the one field screens branch on.
+const BASE = { isTrial: false, trialEndsAt: null, willRenew: true, productId: 'duemeld_pro_yearly', period: 'yearly', platform: 'apple', trialEligible: false, trialDays: 3 };
+const PLAN_FREE = { ...BASE, entitled: false, status: 'none', renewsAt: null, expiresAt: null, willRenew: false, productId: null, period: null, platform: null, trialEligible: true, limits: { scansPerMonth: 100, members: 5 }, usage: { openItems: 4, scansThisMonth: 0, month: TODAY.slice(0, 7) } };
+const PLAN_PRO = { ...BASE, entitled: true, status: 'active', renewsAt: iso(200), expiresAt: iso(200), limits: { scansPerMonth: 100, members: 5 }, usage: { openItems: ITEMS.length, scansThisMonth: 9, month: TODAY.slice(0, 7) } };
+const PLAN_TRIAL = { ...PLAN_PRO, status: 'trial', isTrial: true, trialEndsAt: iso(3), renewsAt: iso(3) };
 /** Default: a household in its 7-day trial (what a new owner sees). HARNESS_PLAN=free|pro for the others. */
 const PLAN = process.env.HARNESS_PLAN === 'free' ? PLAN_FREE : process.env.HARNESS_PLAN === 'pro' ? PLAN_PRO : PLAN_TRIAL;
 

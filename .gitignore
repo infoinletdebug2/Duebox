@@ -24,3 +24,23 @@ website/dist/
 
 # logo concept renders (large); the chosen one is mobile/assets/source/master.png
 design/logo/out/
+
+# harness captures at other sizes (iPad, phone checks)
+**/harness/shots-*/
+
+# App Store screenshot work: keep the scripts and the final out/ images only
+store-shots/art/
+store-shots/ref/
+store-shots/logs/
+store-shots/v1/
+store-shots/backup-asc/
+store-shots/out/*
+!store-shots/out/hero-c.jpg
+!store-shots/out/2-read.jpg
+!store-shots/out/3-remind.jpg
+!store-shots/out/4-household.jpg
+!store-shots/out/5-items.jpg
+!store-shots/out/ipad-*.jpg
+
+# a run of the old (pre-hard-paywall) curl suite; not a valid result
+docs/api-test-prod.txt
