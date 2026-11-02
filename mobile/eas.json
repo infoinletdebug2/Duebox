@@ -1,0 +1,37 @@
+{
+  "cli": {
+    "version": ">= 24.7.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "channel": "preview",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "credentialsSource": "local"
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6829163320",
+        "ascApiKeyPath": "/Users/islamnymul/.appstoreconnect/private_keys/AuthKey_45627J4NYP.p8",
+        "ascApiKeyId": "45627J4NYP",
+        "ascApiKeyIssuerId": "19ec685c-e9b4-40ac-9fca-880975b34e4f"
+      }
+    }
+  }
+}

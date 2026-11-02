@@ -1,0 +1,4 @@
+
+# iOS signing secrets (never commit)
+credentials/
+credentials.json

@@ -1,0 +1,5 @@
+credentials/
+credentials.json
+.env
+.env.local
+dist-web/

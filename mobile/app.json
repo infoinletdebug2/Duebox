@@ -2,6 +2,7 @@
   "expo": {
     "name": "Due Meld",
     "slug": "duebox",
+    "owner": "patheditor1",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "duemeld",
@@ -23,7 +24,8 @@
         "NSCameraUsageDescription": "Due Meld uses the camera to scan letters and bills so it can find their deadlines.",
         "NSPhotoLibraryUsageDescription": "Due Meld lets you choose photos of letters and bills so it can find their deadlines.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "3"
     },
     "android": {
       "package": "com.infoinlet.duemeld",
@@ -32,7 +34,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#2D154A"
       },
-      "permissions": ["CAMERA", "POST_NOTIFICATIONS"],
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ],
       "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
@@ -77,6 +82,10 @@
     "experiments": {
       "typedRoutes": false
     },
-    "extra": {}
+    "extra": {
+      "eas": {
+        "projectId": "ccf56df5-6706-49ed-bae7-e3dd0d3583d7"
+      }
+    }
   }
 }
