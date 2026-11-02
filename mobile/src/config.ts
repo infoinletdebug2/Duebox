@@ -41,6 +41,9 @@ export const API_URL = (() => {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, '');
   if (host) return `http://${host}:${DEV_PORT}`;
+  // A store or TestFlight build has no dev host: never fall back to localhost
+  // there (every request would fail as "No connection" when .env is missing).
+  if (!__DEV__) return 'https://duemeld.xenition.com';
   return `http://localhost:${DEV_PORT}`;
 })();
 
