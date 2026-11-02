@@ -99,7 +99,9 @@ async function nativeApple(): Promise<SocialResult> {
 
 /** In Expo Go the app lives behind `exp://…/--/auth`, so the URL is derived, never hardcoded. */
 function returnUrl(): string {
-  return Linking.createURL('auth');
+  // createURL can give `scheme:///auth` (three slashes); use the two-slash form
+  // the server hands back, or Android may not recognise the sign-in returning.
+  return Linking.createURL('auth').replace(/^([a-z][a-z0-9+.-]*):\/\/\//i, '$1://');
 }
 
 /** The browser lane on its own — also the fallback when a native token is refused. */
