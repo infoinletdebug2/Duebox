@@ -16,12 +16,38 @@
       "channel": "preview",
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://duemeld.xenition.com",
+        "EXPO_PUBLIC_PRO_MONTHLY_ID": "duemeld_pro_monthly",
+        "EXPO_PUBLIC_PRO_YEARLY_ID": "duemeld_pro_yearly",
+        "EXPO_PUBLIC_TRIAL_DAYS": "3",
+        "EXPO_PUBLIC_YEARLY_SAVING_PERCENT": "58",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "contact@infoinlet.com",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://duemeld.xenition.com",
+        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.infoinlet.duemeld",
+        "EXPO_PUBLIC_POSTHOG_TOKEN": "phc_kCdWSEDneUZ7QQrBR6jrKqhabvGEbviJzaCKrqZnDavm",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
+        "EXPO_PUBLIC_APPLE_APP_ID": "6829163320"
       }
     },
     "production": {
       "channel": "production",
       "autoIncrement": true,
-      "credentialsSource": "local"
+      "credentialsSource": "local",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://duemeld.xenition.com",
+        "EXPO_PUBLIC_PRO_MONTHLY_ID": "duemeld_pro_monthly",
+        "EXPO_PUBLIC_PRO_YEARLY_ID": "duemeld_pro_yearly",
+        "EXPO_PUBLIC_TRIAL_DAYS": "3",
+        "EXPO_PUBLIC_YEARLY_SAVING_PERCENT": "58",
+        "EXPO_PUBLIC_SUPPORT_EMAIL": "contact@infoinlet.com",
+        "EXPO_PUBLIC_WEBSITE_URL": "https://duemeld.xenition.com",
+        "EXPO_PUBLIC_ANDROID_PACKAGE": "com.infoinlet.duemeld",
+        "EXPO_PUBLIC_POSTHOG_TOKEN": "phc_kCdWSEDneUZ7QQrBR6jrKqhabvGEbviJzaCKrqZnDavm",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com",
+        "EXPO_PUBLIC_APPLE_APP_ID": "6829163320"
+      }
     }
   },
   "submit": {
