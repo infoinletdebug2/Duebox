@@ -228,4 +228,14 @@ export const APP_MIGRATIONS: Migration[] = [
   PRIMARY KEY (chain, mark)
 )`,
   },
+  {
+    // Store keys the deploy pipeline cannot install on the Worker, sealed by `npm run migrate` (src/vault.ts).
+    id: 'dx/0019_create_provider_secret',
+    sql: `CREATE TABLE IF NOT EXISTS dx__provider_secret (
+  name        text PRIMARY KEY CHECK (char_length(name) BETWEEN 1 AND 60),
+  iv          text NOT NULL,
+  ciphertext  text NOT NULL,
+  updated_at  timestamptz NOT NULL DEFAULT now()
+)`,
+  },
 ];

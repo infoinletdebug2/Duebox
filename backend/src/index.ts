@@ -7,7 +7,8 @@ import { scansRouter } from './routers/scans';
 import { billingRouter } from './routers/billing';
 import { accountRouter } from './routers/account';
 import { deliverReminders, tickDelivery } from './jobs/deliver';
-import { readEnvVar } from './lib';
+import { readEnvVar, sdk } from './lib';
+import { loadVault } from './vault';
 import { handleError } from './errors';
 import { BRAND_LOGO_PNG_BASE64 } from './brand-logo';
 
@@ -23,6 +24,13 @@ const app = new Hono();
 /** On the ROOT app: Hono does not carry a sub-app's notFound across a prefixed mount. */
 app.notFound(jsonNotFound);
 app.onError(handleError);
+
+/** Store keys sealed in dx__provider_secret (src/vault.ts): loaded once per isolate, refreshed every 5 minutes, before any route reads them. */
+app.use('/api/*', async (c, next) => {
+  const key = readEnvVar(c, 'XENITION_API_KEY');
+  if (key) await loadVault(key, async (q) => ((await sdk(c).raw<{ name: string; iv: string; ct: string }>(q)).data ?? []) as { name: string; iv: string; ct: string }[]);
+  await next();
+});
 
 app.get('/health', (c) => c.json({ ok: true, app: 'duemeld' }));
 

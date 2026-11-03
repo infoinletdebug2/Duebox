@@ -23,7 +23,33 @@ async function main(): Promise<void> {
   const catalog = productCatalog(fromProcess);
   process.stdout.write(`declaring ${catalog.length} products… `);
   for (const product of catalog) await client.modules.billing.defineProduct(product);
-  console.log('ok\n\ndone.');
+  console.log('ok');
+
+  // Store keys the pipeline cannot install on the Worker (src/vault.ts): sealed with the service key.
+  const { VAULT_NAMES, sealSecret, openSecret } = await import('./vault');
+  for (const name of VAULT_NAMES) {
+    const value = process.env[name]?.trim();
+    if (!value) continue;
+    const cur = (await client.raw<{ iv: string; ct: string }>(`SELECT iv, ciphertext AS ct FROM dx__provider_secret WHERE name = $1`, [name])).data?.[0];
+    if (cur) {
+      try {
+        if ((await openSecret(key, name, cur.iv, cur.ct)) === value) {
+          console.log(`  ${name} already in the vault`);
+          continue;
+        }
+      } catch {
+        /* re-seal below */
+      }
+    }
+    const sealed = await sealSecret(key, name, value);
+    await client.raw(
+      `INSERT INTO dx__provider_secret (name, iv, ciphertext) VALUES ($1, $2, $3)
+       ON CONFLICT (name) DO UPDATE SET iv = EXCLUDED.iv, ciphertext = EXCLUDED.ciphertext, updated_at = now()`,
+      [name, sealed.iv, sealed.ct],
+    );
+    console.log(`  ${name} sealed into the vault`);
+  }
+  console.log('\ndone.');
 }
 
 main().catch((err) => {

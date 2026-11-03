@@ -131,8 +131,8 @@ check 'd.data.tier==="pro" && d.data.usage.openItems===0 && d.data.usage.month.l
 call GET '/billing/products?platform=apple' 200
 check 'd.data.products.length===4 && d.data.products.filter(p=>p.offer).length===2 && d.data.trialDays===7' 'catalog: 2 plans + 2 welcome-offer products'
 call GET '/billing/products?platform=windows' 400
-call POST /billing/verify 503 '{"platform":"apple","transactionId":"2000000123"}'
-check 'd.error.code==="STORE_UNCONFIGURED"' 'store keys absent → 503 STORE_UNCONFIGURED, not a crash'
+call POST /billing/verify 422 '{"platform":"apple","transactionId":"2000000123"}'
+check 'd.error.code==="PURCHASE_INVALID"' 'a made-up Apple transaction → 422 PURCHASE_INVALID (the store was asked), not a crash'
 
 echo "items"
 D3="$(day 3)"; D20="$(day 20)"; D40="$(day 40)"; DLATE="$(day -2)"; DTODAY="$(day 0)"
@@ -356,8 +356,8 @@ call GET /auth/me 200
 check 'd.data.role==="owner" && d.data.household.name!=="The Testers"' 'a removed member lands in a fresh household of their own'
 TOKEN="$OWNER_TOKEN"
 call DELETE "/devices/ExponentPushToken%5Bapi-test-$STAMP%5D" 200
-call POST /billing/restore 503 '{"originalTransactionId":"2000000000000001"}'
-check 'd.error.code==="STORE_UNCONFIGURED"' 'restore without store keys → 503, not a crash'
+call POST /billing/restore 422 '{"originalTransactionId":"2000000000000001"}'
+check 'd.error.code==="PURCHASE_INVALID"' 'restore of a made-up transaction → 422 PURCHASE_INVALID, not a crash'
 TOKEN=""
 call POST /billing/apple/notifications 503 '{"signedPayload":"x.y.z"}'
 call POST /billing/google/notifications 503 '{"message":{"data":"e30="}}'

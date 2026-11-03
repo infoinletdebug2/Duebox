@@ -1,6 +1,7 @@
 import type { Context } from 'hono';
 import { XenitionClient, snakeCaseQueryClient } from '@xenition/sdk';
-import { createClientFromEnv, currentUserId, readEnvVar } from '@xenition/sdk/hono';
+import { createClientFromEnv, currentUserId, readEnvVar as readWorkerEnv } from '@xenition/sdk/hono';
+import { vaultValues } from './vault';
 import type { EnvReader } from './config';
 import type { Role } from './rows';
 
@@ -21,7 +22,10 @@ import type { Role } from './rows';
 /** SDK modules used for their clients. Billing only (receipts are not a wheel to reinvent). */
 export const MODULES = ['billing'] as const;
 
-export { readEnvVar };
+/** Worker env first, then the store keys sealed in dx__provider_secret (src/vault.ts): the pipeline cannot install those. */
+export function readEnvVar(c: Context, name: string): string | undefined {
+  return readWorkerEnv(c, name) ?? vaultValues()[name];
+}
 
 let cached: XenitionClient | undefined;
 
@@ -29,8 +33,8 @@ let cached: XenitionClient | undefined;
 export function sdk(c: Context): XenitionClient {
   if (!cached) {
     cached = createClientFromEnv({
-      XENITION_API_KEY: readEnvVar(c, 'XENITION_API_KEY'),
-      XENITION_API_URL: readEnvVar(c, 'XENITION_API_URL'),
+      XENITION_API_KEY: readWorkerEnv(c, 'XENITION_API_KEY'),
+      XENITION_API_URL: readWorkerEnv(c, 'XENITION_API_URL'),
     });
     for (const m of MODULES) cached.modules.use(m);
   }

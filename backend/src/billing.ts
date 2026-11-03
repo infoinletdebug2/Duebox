@@ -31,11 +31,22 @@ export const TRIAL_DAYS = (c: Context) => trialDays(env(c));
 export const PRODUCT_IDS = (c: Context) => productIds(env(c));
 
 /** Apple's server API client, or null on a deployment without credentials. */
+/**
+ * Apple's production App Store Server API answers 401 (not 404) for an app that has never been released, so every
+ * TestFlight/sandbox purchase failed before the SDK's sandbox fallback ran. A production 401 is read as "not here":
+ * the SDK then asks sandbox, and a genuinely bad key still fails there with its own 401.
+ */
+const appleFetch: typeof fetch = async (input, init) => {
+  const res = await fetch(input, init);
+  if (res.status === 401 && String(input).startsWith('https://api.storekit.itunes.apple.com/')) return new Response(null, { status: 404 });
+  return res;
+};
+
 export function appleStore(c: Context): AppleStore | null {
   const keyId = readEnvVar(c, 'APPLE_KEY_ID');
   const issuerId = readEnvVar(c, 'APPLE_ISSUER_ID');
   const privateKey = readEnvVar(c, 'APPLE_PRIVATE_KEY');
-  const bundleId = readEnvVar(c, 'APPLE_BUNDLE_ID');
+  const bundleId = readEnvVar(c, 'APPLE_BUNDLE_ID') ?? 'com.infoinlet.duemeld';
   if (!keyId || !issuerId || !privateKey || !bundleId) return null;
   return new AppleStore({
     keyId,
@@ -46,6 +57,7 @@ export function appleStore(c: Context): AppleStore | null {
     // `auto`: TestFlight and App Review purchases exist only in sandbox, and
     // App Review buys against THIS production server — sandbox must unlock.
     environment: 'auto',
+    fetchImpl: appleFetch,
   });
 }
 

@@ -61,14 +61,22 @@ export const billingRouter = defineRouter({
         if (!store) return storeUnconfigured(c, 'apple');
         const transactionId = parseText(body.transactionId, 120);
         if (!transactionId.ok) return invalid(c, 'A transaction id is required.');
-        record = await store.verify({ userId: uid, transactionId: transactionId.value });
+        try {
+          record = await store.verify({ userId: uid, transactionId: transactionId.value });
+        } catch (err) {
+          return purchaseInvalid(c, err);
+        }
       } else {
         const store = googleStore(c);
         if (!store) return storeUnconfigured(c, 'google');
         const productId = parseText(body.productId, 200);
         const purchaseToken = parseText(body.purchaseToken, 4000);
         if (!productId.ok || !purchaseToken.ok) return invalid(c, 'A product id and a purchase token are required.');
-        record = await store.verify({ userId: uid, productId: productId.value, purchaseToken: purchaseToken.value, kind: 'subscription' });
+        try {
+          record = await store.verify({ userId: uid, productId: productId.value, purchaseToken: purchaseToken.value, kind: 'subscription' });
+        } catch (err) {
+          return purchaseInvalid(c, err);
+        }
         // Play auto-refunds anything not acknowledged within 3 days.
         await store
           .acknowledge({ productId: productId.value, purchaseToken: purchaseToken.value, kind: 'subscription' })
@@ -91,7 +99,12 @@ export const billingRouter = defineRouter({
       if (!store) return storeUnconfigured(c, 'apple');
       const originalTransactionId = parseText(body?.originalTransactionId, 120);
       if (!originalTransactionId.ok) return invalid(c, 'An original transaction id is required.');
-      const records = await store.restore({ userId: uid, originalTransactionId: originalTransactionId.value });
+      let records: Awaited<ReturnType<typeof store.restore>>;
+      try {
+        records = await store.restore({ userId: uid, originalTransactionId: originalTransactionId.value });
+      } catch (err) {
+        return purchaseInvalid(c, err);
+      }
       for (const record of records) await countMilestones(c, await billing(c).recordPurchase(record));
       forgetAccess(c, uid);
       return ok(c, { ...(await planPayload(c, await householdRow(c))), restored: records.length });
@@ -165,6 +178,12 @@ export const billingRouter = defineRouter({
 async function resolveAccount(c: Context, token: string): Promise<string | null> {
   const rows = await rawRows<{ user_id: string }>(c, `SELECT user_id FROM dx__profile WHERE lower(user_id) = lower($1) LIMIT 1`, [token]);
   return rows[0]?.user_id ?? null;
+}
+
+/** The store said no (unknown or foreign transaction, bad token): a clear 422 rather than a 500. */
+function purchaseInvalid(c: Context, err: unknown) {
+  console.error('billing: store rejected a purchase', err instanceof Error ? err.message.slice(0, 160) : err);
+  return fail(c, 'PURCHASE_INVALID', "We couldn't confirm that purchase. Try Restore.", 422);
 }
 
 function storeUnconfigured(c: Context, platform: 'apple' | 'google') {
